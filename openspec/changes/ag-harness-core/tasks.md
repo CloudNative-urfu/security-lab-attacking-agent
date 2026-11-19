@@ -20,8 +20,8 @@
 
 ## 4. budget-ledger
 
-- [ ] 4.1 Тесты: типы/уровни, Decimal-деньги, reserve/start/settle, идемпотентность settle, жёсткий лимит, COST_UNKNOWN+TTL, BOUND_BROKEN
-- [ ] 4.2 Доменный менеджер бюджетов + порт `BudgetStore`; in-memory store с lock-семантикой; тесты зелёные
+- [x] 4.1 Тесты: типы/уровни, Decimal-деньги, reserve/start/settle, идемпотентность settle, жёсткий лимит, COST_UNKNOWN+TTL, BOUND_BROKEN
+- [x] 4.2 Доменный менеджер бюджетов + порт `BudgetStore`; in-memory store с lock-семантикой; тесты зелёные
 
 ## 5. tool-dispatch и журнал
 
