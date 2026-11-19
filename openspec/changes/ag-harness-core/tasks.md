@@ -25,8 +25,8 @@
 
 ## 5. tool-dispatch и журнал
 
-- [ ] 5.1 Тесты: вызов только через диспетчер, невалидные параметры, intent до отправки, result всегда записан, однократный permit, UNKNOWN блокирует, cap подзапросов, отсутствие секретов в runner
-- [ ] 5.2 Контракт инструмента (StructuredTool-подобный), порт `ToolRunner` и `CallJournal`; диспетчер, связывающий policy+budget+journal; in-memory адаптеры
+- [x] 5.1 Тесты: вызов только через диспетчер, невалидные параметры, intent до отправки, result всегда записан, однократный permit, UNKNOWN блокирует, cap подзапросов, отсутствие секретов в runner
+- [x] 5.2 Контракт инструмента (StructuredTool-подобный), порт `ToolRunner` и `CallJournal`; диспетчер, связывающий policy+budget+journal; in-memory адаптеры
 - [ ] 5.3 Локальный runner с egress-allowlist и cap подзапросов; безопасный HTTP-инструмент поверх порта; тесты зелёные
 
 ## 6. llm-proxy
