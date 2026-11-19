@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__plugin_hm_nextcloud__files_list"
+      "mcp__plugin_hm_nextcloud__files_list",
+      "Bash(git config *)"
     ]
   }
 }
