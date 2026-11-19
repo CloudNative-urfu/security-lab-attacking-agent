@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+# uv
+.uv/
+# Test / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+# Env / secrets
+.env
+.env.*
+secrets/
+*-secrets/
+.secrets/
+*.key
+*.pem
+# OS / editors
+.DS_Store
+*.swp
+# Local artifact/checkpoint store
+.local_store/
