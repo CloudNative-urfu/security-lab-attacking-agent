@@ -2,16 +2,16 @@
 
 ## 1. Каркас проекта и инфраструктура разработки
 
-- [ ] 1.1 Инициализировать Python-проект через uv (`pyproject.toml`, пакет `attacking_agent`), зависимости families и dev-tools (pytest, ruff, mypy)
-- [ ] 1.2 Настроить конфигурацию инструментов (ruff, mypy, pytest, coverage) и `.gitignore`
-- [ ] 1.3 Завести структуру пакетов: `domain/`, `adapters/`, `app/`; заготовки портов (Protocol)
-- [ ] 1.4 Базовые типы идентичности и ошибок (ids: op/attempt/reservation/charge/command; Result-типы статусов)
+- [x] 1.1 Инициализировать Python-проект через uv (`pyproject.toml`, пакет `attacking_agent`), зависимости families и dev-tools (pytest, ruff, mypy)
+- [x] 1.2 Настроить конфигурацию инструментов (ruff, mypy, pytest, coverage) и `.gitignore`
+- [x] 1.3 Завести структуру пакетов: `domain/`, `adapters/`, `app/`; заготовки портов (Protocol)
+- [x] 1.4 Базовые типы идентичности и ошибок (ids: op/attempt/reservation/charge/command; Result-типы статусов)
 
 ## 2. campaign-config (КИК)
 
-- [ ] 2.1 Тесты: валидация разделов, запрет сырых секретов, детерминированный хэш, неизменность, публичная проекция
-- [ ] 2.2 Pydantic-модели ObjectiveSpec/TargetSpec/BudgetSpec/PolicySpec/MemoryStateSpec и агрегат КИК
-- [ ] 2.3 Канонизация состава + SHA-256, freeze, публичная проекция; все тесты зелёные
+- [x] 2.1 Тесты: валидация разделов, запрет сырых секретов, детерминированный хэш, неизменность, публичная проекция
+- [x] 2.2 Pydantic-модели ObjectiveSpec/TargetSpec/BudgetSpec/PolicySpec/MemoryStateSpec и агрегат КИК
+- [x] 2.3 Канонизация состава + SHA-256, freeze, публичная проекция; все тесты зелёные
 
 ## 3. policy-enforcement
 
