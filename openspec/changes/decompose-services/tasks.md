@@ -8,9 +8,9 @@
 
 ## 2. Tool-runner (сервис + сетевой адаптер)
 
-- [ ] 2.1 Тесты: диспетчер исполняет инструмент через `HttpToolRunner`; инструмент вне allowlist отклонён; cap/таймаут сохранены
-- [ ] 2.2 Сервис `services/tool_runner` (FastAPI `POST /v1/run`) с allowlist и `SubprocessToolRunner` внутри
-- [ ] 2.3 Адаптер `HttpToolRunner` (реализует `ToolRunner`): передаёт идентичность инструмента и параметры
+- [x] 2.1 Тесты: диспетчер исполняет инструмент через `HttpToolRunner`; инструмент вне allowlist отклонён; cap/таймаут сохранены
+- [x] 2.2 Сервис `services/tool_runner` (FastAPI `POST /v1/run`) с allowlist и `SubprocessToolRunner` внутри
+- [x] 2.3 Адаптер `HttpToolRunner` (реализует `ToolRunner`): передаёт идентичность инструмента и параметры
 
 ## 3. Деплой и топология
 
