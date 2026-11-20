@@ -27,13 +27,13 @@
 
 - [x] 5.1 Тесты: вызов только через диспетчер, невалидные параметры, intent до отправки, result всегда записан, однократный permit, UNKNOWN блокирует, cap подзапросов, отсутствие секретов в runner
 - [x] 5.2 Контракт инструмента (StructuredTool-подобный), порт `ToolRunner` и `CallJournal`; диспетчер, связывающий policy+budget+journal; in-memory адаптеры
-- [ ] 5.3 Локальный runner с egress-allowlist и cap подзапросов; безопасный HTTP-инструмент поверх порта; тесты зелёные
+- [x] 5.3 Локальный runner с egress-allowlist и cap подзапросов; безопасный HTTP-инструмент поверх порта; тесты зелёные
 
 ## 6. llm-proxy
 
 - [x] 6.1 Тесты: запрет без допуска, учёт usage в ledger, отсутствие скрытых retry/fallback, INVALID_OUTPUT, исправление как отдельная попытка
 - [x] 6.2 Порт `LLMClient`; доменный Proxy (допуск→вызов→usage→settle), валидация структурированного ответа; fake-клиент
-- [ ] 6.3 Адаптер поверх LiteLLM (retries/fallback выkey OFF), создаётся на worker-слое; тесты зелёные (адаптер — unit с заглушкой транспорта)
+- [x] 6.3 Адаптер поверх LiteLLM (retries/fallback выkey OFF), создаётся на worker-слое; тесты зелёные (адаптер — unit с заглушкой транспорта)
 
 ## 7. semantic-memory
 
@@ -64,8 +64,8 @@
 
 ## 12. Сборка, демо и проверка
 
-- [ ] 12.1 Локальный демо-прогон кампании «end-to-end» на in-memory адаптерах (CLI `python -m attacking_agent.demo`)
-- [ ] 12.2 Полный прогон `pytest`, `ruff`, `mypy`; README с запуском и границами MVP; `openspec validate --strict` зелёный
+- [x] 12.1 Локальный демо-прогон кампании «end-to-end» на in-memory адаптерах (CLI `python -m attacking_agent.demo`)
+- [x] 12.2 Полный прогон `pytest`, `ruff`, `mypy`; README с запуском и границами MVP; `openspec validate --strict` зелёный
 
 ## Workflow follow-up
 
