@@ -18,8 +18,16 @@ from attacking_agent.domain.orchestration.models import (
     EpisodeSpec,
     StepDecision,
 )
+from attacking_agent.domain.orchestration.prompt import (
+    UNTRUSTED_CLOSE,
+    UNTRUSTED_OPEN,
+    build_messages,
+    neutralize_untrusted,
+)
 
 __all__ = [
+    "UNTRUSTED_CLOSE",
+    "UNTRUSTED_OPEN",
     "CampaignController",
     "CloseResult",
     "EpisodeController",
@@ -32,4 +40,6 @@ __all__ = [
     "OpenResult",
     "OpenStatus",
     "StepDecision",
+    "build_messages",
+    "neutralize_untrusted",
 ]

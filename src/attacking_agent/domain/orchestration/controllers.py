@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
@@ -26,6 +27,7 @@ from attacking_agent.domain.orchestration.models import (
     EpisodeSpec,
     StepDecision,
 )
+from attacking_agent.domain.orchestration.prompt import build_messages
 from attacking_agent.domain.policy import Decision, PolicyEnforcer
 from attacking_agent.domain.tools import (
     Dispatcher,
@@ -122,15 +124,17 @@ class EpisodeController:
         outcome = EpisodeOutcome.INCONCLUSIVE
         stop_reason = "step_limit"
         steps_taken = 0
+        observations: list[str] = []  # недоверенные наблюдения СС для контекста
 
         for step in range(spec.max_steps):
             steps_taken = step + 1
 
-            # 1. Чтение опыта (TASK).
-            self._reader.read(spec.scope, ReadMode.TASK, spec.question, limit=20)
+            # 1. Чтение опыта (TASK) — свидетельства идут в контекст решения.
+            read = self._reader.read(spec.scope, ReadMode.TASK, spec.question, limit=20)
+            evidence = [k.statement for k in read.knowledge]
 
             # 2. Предложение модели (под допуском и учётом расхода).
-            decision, pstatus = self._propose(spec, step)
+            decision, pstatus = self._propose(spec, step, evidence, observations)
             if decision is None:
                 stop_reason = f"llm_{pstatus.value}"
                 break
@@ -178,7 +182,8 @@ class EpisodeController:
                 )
             )
 
-            # 5. Наблюдение фиксируется как Event (независимо от знания).
+            # 5. Наблюдение фиксируется как Event (независимо от знания) и подаётся в
+            # контекст следующего шага как НЕДОВЕРЕННЫЕ данные.
             if dr.observation is not None:
                 self._writer.append_event(
                     spec.scope,
@@ -193,6 +198,7 @@ class EpisodeController:
                     ),
                 )
                 self._metrics.record(dr.observation)
+                observations.append(json.dumps(dr.observation.payload, ensure_ascii=False))
 
             # 6. UNKNOWN блокирует зависимые действия.
             if dr.status is DispatchStatus.UNKNOWN:
@@ -202,7 +208,11 @@ class EpisodeController:
         return EpisodeResult(outcome, stop_reason, steps_taken)
 
     def _propose(
-        self, spec: EpisodeSpec, step: int
+        self,
+        spec: EpisodeSpec,
+        step: int,
+        evidence: list[str],
+        observations: list[str],
     ) -> tuple[StepDecision | None, ProxyStatus]:
         ep = spec.episode_id
         req = LLMRequest(
@@ -210,7 +220,7 @@ class EpisodeController:
             attempt_id=f"{ep}-llm-att-{step}",
             initiator="episode-controller",
             model_ref="model-x",
-            messages=[{"role": "user", "content": spec.question}],
+            messages=build_messages(spec.question, evidence, observations),
             max_tokens=256,
         )
         result = self._proxy.request(
