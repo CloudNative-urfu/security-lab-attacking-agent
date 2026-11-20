@@ -51,7 +51,7 @@
 - [x] 8.1 Прогнать агентов-критиков (code-review) по diff харденинга; триаж findings
 - [x] 8.2 Устранить подтверждённые findings
 - [x] 8.3 Рекалибровать README/claims под реальные гарантии; полный прогон ворот
-- [ ] 8.4 Архивировать change `harden-core`
+- [x] 8.4 Архивировать change `harden-core`
 
 ## Workflow follow-up
 
