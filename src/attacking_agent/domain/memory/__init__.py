@@ -16,6 +16,7 @@ from attacking_agent.domain.memory.entities import (
 from attacking_agent.domain.memory.retrieval import (
     Embedder,
     EmbeddingScorer,
+    HashingEmbedder,
     RelevanceScorer,
     TokenOverlapScorer,
     cosine,
@@ -52,6 +53,7 @@ __all__ = [
     "EmbeddingScorer",
     "Event",
     "EventInput",
+    "HashingEmbedder",
     "InMemoryMemoryStore",
     "KnowledgeInput",
     "KnowledgeNode",
