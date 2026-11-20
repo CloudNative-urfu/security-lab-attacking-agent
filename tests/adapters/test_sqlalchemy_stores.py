@@ -201,3 +201,71 @@ def test_sql_memory_changed_composition_rejected(engine: Engine) -> None:
     tampered = cand.with_tampered_composition()
     r = writer.commit(scope, tampered, assessment)
     assert r.status in (CommitStatus.REJECTED, CommitStatus.STALE)
+
+
+# --- SQLAlchemy LLM journal: durable replay --------------------------------------
+
+
+def test_sql_llm_journal_durable_replay(engine: Engine) -> None:
+    from decimal import Decimal
+
+    from attacking_agent.adapters.sql import SQLAlchemyLLMJournal
+    from attacking_agent.domain.llm import LLMResponse, Usage
+
+    journal = SQLAlchemyLLMJournal(engine)
+    assert journal.get("op-1", "att-1") is None
+    assert journal.claim("op-1", "att-1") is True
+    assert journal.claim("op-1", "att-1") is False  # слот уже захвачен
+    assert journal.get("op-1", "att-1") is None  # захвачен, но не записан
+    resp = LLMResponse(
+        content="ok", structured={"k": "v"},
+        usage=Usage(prompt_tokens=10, completion_tokens=5), cost=Decimal("0.004"),
+    )
+    journal.record("op-1", "att-1", resp)
+    got = journal.get("op-1", "att-1")
+    assert got is not None
+    assert got.cost == Decimal("0.004")
+    assert got.structured == {"k": "v"}
+    assert got.usage.prompt_tokens == 10
+
+
+def test_sql_llm_journal_proxy_replay_no_resend(engine: Engine) -> None:
+    from decimal import Decimal
+
+    from attacking_agent.adapters.sql import SQLAlchemyLLMJournal
+    from attacking_agent.domain.budget import (
+        BudgetAccountRef,
+        InMemoryBudgetStore,
+        LedgerManager,
+    )
+    from attacking_agent.domain.common.clock import ManualClock
+    from attacking_agent.domain.common.ids import SequentialIdFactory
+    from attacking_agent.domain.config import BudgetLevel, BudgetType, Hardness
+    from attacking_agent.domain.llm import LLMProxy, LLMRequest, LLMResponse, ProxyStatus, Usage
+
+    class _Client:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(self, request: LLMRequest) -> LLMResponse:
+            self.calls += 1
+            return LLMResponse(content="x", structured={"k": 1},
+                               usage=Usage(prompt_tokens=1, completion_tokens=1),
+                               cost=Decimal("0.001"))
+
+    mgr = LedgerManager(
+        InMemoryBudgetStore(), clock=ManualClock(), id_factory=SequentialIdFactory()
+    )
+    ref = BudgetAccountRef("c", BudgetLevel.CAMPAIGN, "c", BudgetType.MONEY)
+    mgr.open_account(ref, limit=Decimal("1"), hardness=Hardness.HARD, currency="USD")
+    client = _Client()
+    req = LLMRequest(op_id="op-1", attempt_id="att-1", initiator="t", model_ref="m",
+                     messages=[{"role": "user", "content": "hi"}], max_tokens=16)
+
+    # отдельные инстансы proxy поверх ОДНОГО durable журнала (имитация рестарта)
+    p1 = LLMProxy(client=client, ledger=mgr, journal=SQLAlchemyLLMJournal(engine))
+    r1 = p1.request(req, account_ref=ref, reserve_amount=Decimal("0.05"), reservation_id="res-1")
+    p2 = LLMProxy(client=client, ledger=mgr, journal=SQLAlchemyLLMJournal(engine))
+    r2 = p2.request(req, account_ref=ref, reserve_amount=Decimal("0.05"), reservation_id="res-1")
+    assert r1.status is ProxyStatus.OK and r2.status is ProxyStatus.OK
+    assert client.calls == 1  # durable journal: replay даже новым процессом не переотправляет

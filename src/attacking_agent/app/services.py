@@ -220,7 +220,13 @@ class SignedTokenAuthProvider:
             data = json.loads(payload)
         except json.JSONDecodeError:
             return None
-        if not isinstance(data, dict) or float(data.get("exp", 0)) < self._current_ts():
+        if not isinstance(data, dict):
+            return None
+        try:
+            exp = float(data.get("exp", 0))
+        except (TypeError, ValueError):
+            return None
+        if exp < self._current_ts():
             return None
         scopes = data.get("scopes", [])
         if not isinstance(scopes, list):

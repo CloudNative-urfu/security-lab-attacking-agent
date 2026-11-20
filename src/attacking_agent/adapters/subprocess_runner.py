@@ -21,20 +21,26 @@ from attacking_agent.domain.tools import Observation, ObservationStatus
 from attacking_agent.domain.tools.contracts import SubrequestCapError, ToolContext
 from attacking_agent.domain.tools.runner import RunRequest
 
-# Имена переменных окружения, вычищаемых в дочернем процессе перед запуском инструмента.
-_SECRET_ENV_MARKERS = (
-    "SECRET",
-    "TOKEN",
-    "KEY",
-    "PASSWORD",
-    "PASSWD",
-    "CREDENTIAL",
-    "DATABASE_URL",
-    "DB_URL",
-    "DSN",
-    "AWS_",
-    "API",
+# Allowlist переменных окружения, оставляемых в дочернем процессе (всё остальное
+# удаляется). Allowlist надёжнее denylist: секрет в нестандартно названной переменной
+# не утечёт. Префиксы (LC_, PYTHON) разрешают семейства локали и настройки интерпретатора.
+_ENV_ALLOWLIST_NAMES = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "PWD",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "TZ",
+        "LANG",
+        "LANGUAGE",
+        "SHLVL",
+        "USER",
+        "LOGNAME",
+    }
 )
+_ENV_ALLOWLIST_PREFIXES = ("LC_", "PYTHON")
 
 _AMBIGUOUS = ("TimeoutError", "ConnectionError")
 
@@ -48,14 +54,17 @@ class _ChildSpec:
     params_dict: dict[str, Any]
     address: str | None
     cap: int
-    scrub_markers: tuple[str, ...]
+    env_allowlist: frozenset[str]
+    env_allow_prefixes: tuple[str, ...]
 
 
-def _scrub_env(markers: tuple[str, ...]) -> None:
+def _restrict_env(allow_names: frozenset[str], allow_prefixes: tuple[str, ...]) -> None:
+    """Оставить в окружении только разрешённые переменные; остальное удалить (allowlist)."""
     for name in list(os.environ.keys()):
         upper = name.upper()
-        if any(m in upper for m in markers):
-            del os.environ[name]
+        if upper in allow_names or any(upper.startswith(p) for p in allow_prefixes):
+            continue
+        del os.environ[name]
 
 
 def _resolve(module: str, qualname: str) -> Any:
@@ -66,7 +75,7 @@ def _resolve(module: str, qualname: str) -> Any:
 
 
 def _child_entry(result_q: mp.Queue[dict[str, Any]], spec: _ChildSpec) -> None:
-    _scrub_env(spec.scrub_markers)
+    _restrict_env(spec.env_allowlist, spec.env_allow_prefixes)
     ctx = ToolContext(address=spec.address, subrequest_cap=spec.cap)
     try:
         executor = _resolve(spec.executor_module, spec.executor_qualname)
@@ -95,12 +104,14 @@ class SubprocessToolRunner:
         subrequest_cap: int = 16,
         timeout_seconds: float = 10.0,
         max_output_bytes: int = 256 * 1024,
-        scrub_markers: tuple[str, ...] = _SECRET_ENV_MARKERS,
+        env_allowlist: frozenset[str] = _ENV_ALLOWLIST_NAMES,
+        env_allow_prefixes: tuple[str, ...] = _ENV_ALLOWLIST_PREFIXES,
     ) -> None:
         self._cap = subrequest_cap
         self._timeout = timeout_seconds
         self._max_output = max_output_bytes
-        self._scrub = scrub_markers
+        self._env_allowlist = env_allowlist
+        self._env_allow_prefixes = env_allow_prefixes
         self._ctx = mp.get_context("spawn")
 
     def run(self, request: RunRequest) -> Observation:
@@ -114,7 +125,8 @@ class SubprocessToolRunner:
             params_dict=params.model_dump(),
             address=request.address,
             cap=self._cap,
-            scrub_markers=self._scrub,
+            env_allowlist=self._env_allowlist,
+            env_allow_prefixes=self._env_allow_prefixes,
         )
         if not spec.executor_module or not spec.executor_qualname:
             return Observation(

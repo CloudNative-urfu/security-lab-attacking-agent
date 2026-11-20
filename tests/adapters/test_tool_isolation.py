@@ -129,3 +129,18 @@ def test_brokered_client_blocks_disallowed_and_redirect() -> None:
     except BrokeredRequestDenied:
         denied_redirect = True
     assert denied_redirect  # redirect на запрещённый адрес отклонён
+
+
+def test_subprocess_allowlist_scrubs_nonstandard_secret_name() -> None:
+    # Переменная с нестандартным именем (denylist бы её пропустил) — allowlist вычищает.
+    os.environ["GH_PAT"] = "ghp_nonstandardname1234567890"
+    try:
+        runner = SubprocessToolRunner(timeout_seconds=15)
+        obs = runner.run(
+            RunRequest(executor=env_probe_tool, params=EnvProbeParams(var="GH_PAT"),
+                       address=None)
+        )
+        assert obs.status is ObservationStatus.OK
+        assert obs.payload["saw_secret"] is False
+    finally:
+        del os.environ["GH_PAT"]

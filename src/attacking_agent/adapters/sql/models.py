@@ -110,6 +110,19 @@ class CommittedCandidateRow(Base):
     receipt_id: Mapped[str] = mapped_column(String(128))
 
 
+class LLMAttemptRow(Base):
+    __tablename__ = "llm_attempts"
+
+    op_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    recorded: Mapped[bool] = mapped_column(Boolean, default=False)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    structured: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+
+
 class IntentRow(Base):
     __tablename__ = "journal_intents"
 
