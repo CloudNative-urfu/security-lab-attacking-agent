@@ -132,13 +132,38 @@ class Writer:
         self._store.put_candidate(candidate)
         return candidate
 
+    def _assess(self, scope: Scope, candidate: Candidate) -> tuple[str, str]:
+        """Вернуть (verdict, reason). Реальная проверка согласованности и критериев."""
+        # 1. Целостность состава: пересчитанный hash должен совпасть.
+        recomputed = composition_hash(
+            candidate.scope_key,
+            candidate.base_version,
+            candidate.read_set,
+            candidate.knowledge,
+        )
+        if recomputed != candidate.composition_hash:
+            return "rejected", "состав не соответствует composition_hash"
+        # 2. Актуальность базы: база кандидата совпадает с текущей версией ветки.
+        if candidate.base_version != self._store.branch_version(scope):
+            return "rejected", "база кандидата устарела относительно версии ветки"
+        # 3. Критерии качества каждого утверждения.
+        if not candidate.knowledge:
+            return "rejected", "кандидат пуст"
+        for k in candidate.knowledge:
+            if not k.statement.strip():
+                return "rejected", "пустое утверждение"
+            if k.status == "confirmed" and not k.evidence_refs:
+                return "rejected", "подтверждённое утверждение без оснований"
+        return "accepted", "ok"
+
     def evaluate(self, scope: Scope, candidate: Candidate) -> Assessment:
         # Оценка привязана к составу кандидата; изменение состава аннулирует approval.
+        verdict, _reason = self._assess(scope, candidate)
         return Assessment(
             assessment_ref=self._ids.new_id("assess"),
             candidate_id=candidate.candidate_id,
             composition_hash=candidate.composition_hash,
-            verdict="accepted",
+            verdict=verdict,
         )
 
     def commit(self, scope: Scope, candidate: Candidate, assessment: Assessment) -> CommitResult:
@@ -152,6 +177,9 @@ class Writer:
             if candidate.composition_hash != assessment.composition_hash:
                 return CommitResult(CommitStatus.REJECTED)
             if assessment.candidate_id != candidate.candidate_id:
+                return CommitResult(CommitStatus.REJECTED)
+            # Публиковать можно только принятого кандидата.
+            if assessment.verdict != "accepted":
                 return CommitResult(CommitStatus.REJECTED)
             # Проверка fence по базовой версии.
             if candidate.base_version != self._store.branch_version(scope):
