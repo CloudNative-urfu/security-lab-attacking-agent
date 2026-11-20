@@ -16,6 +16,23 @@ services:
       timeout: 3s
       retries: 30
 
+  llm-gateway:
+    build: .
+    command: ["python", "-m", "services.llm_gateway"]
+    environment:
+      AG_PORT: "8081"
+      AG_MODEL: "gpt-4o-mini"
+    ports:
+      - "8081:8081"
+
+  tool-runner:
+    build: .
+    command: ["python", "-m", "services.tool_runner"]
+    environment:
+      AG_PORT: "8082"
+    ports:
+      - "8082:8082"
+
   temporal:
     image: temporalio/auto-setup:1.25.2
     depends_on:

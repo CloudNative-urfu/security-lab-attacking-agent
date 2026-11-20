@@ -14,10 +14,10 @@
 
 ## 3. Деплой и топология
 
-- [ ] 3.1 Entrypoints `services/api` (операторский API) и `services/worker` (Temporal-воркер)
-- [ ] 3.2 Dockerfile(ы) и сервисы в docker-compose (llm-gateway, tool-runner, api, worker)
-- [ ] 3.3 README: диаграмма топологии и запуск сервисов
+- [x] 3.1 Entrypoints `services/api` (операторский API) и `services/worker` (Temporal-воркер)
+- [x] 3.2 Dockerfile(ы) и сервисы в docker-compose (llm-gateway, tool-runner, api, worker)
+- [x] 3.3 README: диаграмма топологии и запуск сервисов
 
 ## 4. Приёмка
 
-- [ ] 4.1 Полный прогон ворот; контрактные тесты зелёные; архивировать change
+- [x] 4.1 Полный прогон ворот; контрактные тесты зелёные; архивировать change
