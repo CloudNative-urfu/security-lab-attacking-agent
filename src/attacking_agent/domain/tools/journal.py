@@ -49,6 +49,7 @@ class ResultRecord:
 class CallJournal(Protocol):
     """Порт журнала вызовов."""
 
+    def claim(self, intent: IntentRecord) -> bool: ...
     def record_intent(self, intent: IntentRecord) -> None: ...
     def has_intent(self, op_id: str, attempt_id: str) -> bool: ...
     def record_result(self, result: ResultRecord) -> None: ...
@@ -61,12 +62,25 @@ class InMemoryCallJournal:
     """In-memory реализация :class:`CallJournal`."""
 
     def __init__(self) -> None:
+        import threading
+
+        self._lock = threading.Lock()
         self._intents: dict[tuple[str, str], IntentRecord] = {}
         self._results: dict[tuple[str, str], ResultRecord] = {}
 
+    def claim(self, intent: IntentRecord) -> bool:
+        """Атомарно застолбить слот (op_id, attempt_id). True — слот захвачен этим вызовом."""
+        key = (intent.op_id, intent.attempt_id)
+        with self._lock:
+            if key in self._intents:
+                return False
+            self._intents[key] = intent
+            return True
+
     def record_intent(self, intent: IntentRecord) -> None:
         key = (intent.op_id, intent.attempt_id)
-        self._intents.setdefault(key, intent)
+        with self._lock:
+            self._intents.setdefault(key, intent)
 
     def has_intent(self, op_id: str, attempt_id: str) -> bool:
         return (op_id, attempt_id) in self._intents

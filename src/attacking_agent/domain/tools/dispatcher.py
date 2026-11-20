@@ -124,8 +124,9 @@ class Dispatcher:
         if start.status is not StartStatus.OK:
             return DispatchResult(DispatchStatus.NO_BUDGET, reason=start.status.value)
 
-        # 4. Durable intent — до внешней отправки.
-        self._journal.record_intent(
+        # 4. Атомарное застолбление попытки (durable intent) — до внешней отправки.
+        # Конкурентная/повторная доставка той же попытки не захватит слот и не отправит.
+        claimed = self._journal.claim(
             IntentRecord(
                 op_id=req.op_id,
                 attempt_id=req.attempt_id,
@@ -134,6 +135,14 @@ class Dispatcher:
                 permit_id=start.permit_id,
             )
         )
+        if not claimed:
+            prior = self._journal.get_result(req.op_id, req.attempt_id)
+            if prior is not None:
+                return DispatchResult(
+                    DispatchStatus(prior.dispatch_status), prior.observation, "повтор доставки"
+                )
+            # Слот захвачен конкурентным вызовом, результат ещё не записан — не отправляем.
+            return DispatchResult(DispatchStatus.OK, None, "попытка уже выполняется")
 
         # 5. Исполнение в изолированном runner.
         observation = self._runner.run(

@@ -37,6 +37,25 @@ class SQLAlchemyCallJournal:
         self._engine = engine
         self._session_factory = sessionmaker(engine)
 
+    def claim(self, intent: IntentRecord) -> bool:
+        """Атомарно застолбить слот через вставку с конфликтом по первичному ключу."""
+        from sqlalchemy.exc import IntegrityError
+
+        try:
+            with self._session_factory() as session, session.begin():
+                session.add(
+                    IntentRow(
+                        op_id=intent.op_id,
+                        attempt_id=intent.attempt_id,
+                        branch_id=intent.branch_id,
+                        tool_name=intent.tool_name,
+                        permit_id=intent.permit_id,
+                    )
+                )
+        except IntegrityError:
+            return False
+        return True
+
     def record_intent(self, intent: IntentRecord) -> None:
         with self._session_factory() as session, session.begin():
             if session.get(IntentRow, (intent.op_id, intent.attempt_id)) is not None:
