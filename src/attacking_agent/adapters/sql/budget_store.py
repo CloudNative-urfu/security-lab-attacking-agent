@@ -1,17 +1,25 @@
 """SQLAlchemy-реализация порта :class:`BudgetStore` (источник истины о расходах).
 
-``lock()`` открывает транзакцию (на уровне процесса сериализует доступ — для SQLite;
-на PostgreSQL заменяется на ``SELECT FOR UPDATE`` / advisory locks). Все get/put внутри
-одного ``lock()`` работают в одной транзакции и фиксируются при выходе.
+``lock()`` открывает транзакцию с **реальной БД-блокировкой**, удерживающей инвариант
+жёсткого лимита между независимыми процессами (воркерами):
+
+- SQLite: ``BEGIN IMMEDIATE`` (RESERVED-лок на файл сразу при старте транзакции) +
+  ``busy_timeout`` — конкурентные записи сериализуются, а не ошибаются.
+- PostgreSQL: transaction-level advisory lock (``pg_advisory_xact_lock``), снимается при
+  commit/rollback.
+
+Все get/put внутри одного ``lock()`` работают в одной сериализованной транзакции.
 """
 
 from __future__ import annotations
 
 import threading
+import weakref
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any
 
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, event, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from attacking_agent.domain.budget import (
@@ -26,6 +34,9 @@ from attacking_agent.domain.budget import (
 from attacking_agent.domain.config import BudgetLevel, BudgetType, Hardness
 
 from .models import BudgetAccountRow, ChargeRow, ReservationRow
+
+# Константный ключ advisory-лока бюджета для PostgreSQL (сериализация записей бюджета).
+_PG_BUDGET_LOCK_KEY = 0x42_55_44_47  # "BUDG"
 
 
 def _to_account(row: BudgetAccountRow) -> BudgetAccount:
@@ -65,12 +76,50 @@ def _to_charge(row: ChargeRow) -> Charge:
     )
 
 
+_immediate_engines: weakref.WeakSet[Engine] = weakref.WeakSet()
+
+
+def configure_sqlite_engine(engine: Engine, busy_timeout_ms: int = 10000) -> None:
+    """Настроить SQLite на BEGIN IMMEDIATE + busy_timeout для кросс-процессной сериализации.
+
+    Вызывать **до первого соединения** (из ``create_all`` или при создании стора).
+    Идемпотентно по движку; без ``dispose`` (не разрушает in-memory БД).
+    """
+    if engine.dialect.name != "sqlite" or engine in _immediate_engines:
+        return
+    _immediate_engines.add(engine)
+
+    @event.listens_for(engine, "connect")
+    def _on_connect(dbapi_conn: Any, _rec: Any) -> None:
+        # Отключаем неявный BEGIN pysqlite, чтобы эмитить свой BEGIN IMMEDIATE.
+        dbapi_conn.isolation_level = None
+        cur = dbapi_conn.cursor()
+        cur.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
+        cur.close()
+
+    @event.listens_for(engine, "begin")
+    def _on_begin(conn: Any) -> None:
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+
+
 class SQLAlchemyBudgetStore:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
+        self._dialect = engine.dialect.name
         self._session_factory = sessionmaker(engine)
         self._local = threading.local()
         self._guard = threading.Lock()
+        configure_sqlite_engine(engine)
+
+    def _acquire_db_lock(self, session: Session) -> None:
+        # Кросс-процессная сериализация записей бюджета.
+        if self._dialect == "postgresql":
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(:k)"), {"k": _PG_BUDGET_LOCK_KEY}
+            )
+        elif self._dialect == "sqlite":
+            # BEGIN IMMEDIATE уже взял RESERVED-лок; форсируем старт транзакции.
+            session.execute(text("SELECT 1"))
 
     @contextmanager
     def lock(self) -> Iterator[None]:
@@ -81,6 +130,7 @@ class SQLAlchemyBudgetStore:
         session = self._session_factory()
         self._local.session = session
         try:
+            self._acquire_db_lock(session)
             yield
             session.commit()
         except BaseException:
@@ -174,4 +224,5 @@ def create_all(engine: Engine) -> None:
     """Создать схему (для MVP/тестов; в production — миграции)."""
     from .models import Base
 
+    configure_sqlite_engine(engine)
     Base.metadata.create_all(engine)
