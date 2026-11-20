@@ -29,13 +29,16 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+_AUTH = {"Authorization": "Bearer valid-token"}
+
+
 def _cmd(command_id: str = "cmd-1", kind: str = "start", target: str = "br-1") -> dict:
     return {"command_id": command_id, "kind": kind, "payload": {"branch_id": target}}
 
 
 def test_command_idempotent_same_content(client: TestClient) -> None:
-    r1 = client.post("/campaigns/camp-1/commands", json=_cmd())
-    r2 = client.post("/campaigns/camp-1/commands", json=_cmd())
+    r1 = client.post("/campaigns/camp-1/commands", json=_cmd(), headers=_AUTH)
+    r2 = client.post("/campaigns/camp-1/commands", json=_cmd(), headers=_AUTH)
     assert r1.status_code == 200
     assert r2.status_code == 200
     assert r1.json()["workflow_ref"] == r2.json()["workflow_ref"]  # прежний результат
@@ -43,9 +46,15 @@ def test_command_idempotent_same_content(client: TestClient) -> None:
 
 
 def test_command_conflict_same_id_diff_content(client: TestClient) -> None:
-    client.post("/campaigns/camp-1/commands", json=_cmd("cmd-1", "start", "br-1"))
-    r = client.post("/campaigns/camp-1/commands", json=_cmd("cmd-1", "start", "br-2"))
+    url = "/campaigns/camp-1/commands"
+    client.post(url, json=_cmd("cmd-1", "start", "br-1"), headers=_AUTH)
+    r = client.post(url, json=_cmd("cmd-1", "start", "br-2"), headers=_AUTH)
     assert r.status_code == 409
+
+
+def test_command_requires_auth(client: TestClient) -> None:
+    r = client.post("/campaigns/camp-1/commands", json=_cmd())
+    assert r.status_code in (401, 403)
 
 
 def test_read_requires_auth(client: TestClient) -> None:

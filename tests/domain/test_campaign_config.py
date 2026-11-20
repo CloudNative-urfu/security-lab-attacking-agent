@@ -134,3 +134,10 @@ def test_public_projection_excludes_private_and_secrets() -> None:
     # но разрешённые интерфейсы и цель присутствуют
     assert dumped["interfaces"][0]["address"] == "https://demo.svc.internal/feedback"
     assert dumped["objective"]["zone"].startswith("Форма")
+
+
+def test_secret_value_in_neutral_field_rejected() -> None:
+    raw = _valid_raw()
+    raw["objective"]["note"] = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJl"  # JWT-подобное
+    with pytest.raises(SecretLeakError):
+        CampaignConfig.from_raw(raw)

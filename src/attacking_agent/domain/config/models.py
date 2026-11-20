@@ -21,44 +21,26 @@ from attacking_agent.domain.common.errors import (
     SecretLeakError,
     ValidationError,
 )
+from attacking_agent.domain.common.secrets_detect import key_is_secret, looks_like_secret_value
+
 
 # Имена ключей, значение которых обязано быть ссылкой (ref), а не сырым секретом.
-_SECRET_KEY_MARKERS = (
-    "password",
-    "passwd",
-    "secret",
-    "token",
-    "apikey",
-    "api_key",
-    "api-key",
-    "credential",
-    "private_key",
-    "privatekey",
-    "access_key",
-    "client_secret",
-)
-
-
 def _is_ref_shaped(value: Any) -> bool:
     return isinstance(value, dict) and set(value.keys()) == {"ref"} and bool(value["ref"])
-
-
-def _key_is_secret(key: str) -> bool:
-    low = key.lower()
-    return any(marker in low for marker in _SECRET_KEY_MARKERS)
 
 
 def scan_for_inline_secrets(data: Any, path: str = "") -> None:
     """Рекурсивно обойти сырой состав и запретить сырые секреты.
 
-    Ключ с «секретным» именем допускается только если его значение имеет форму
-    ``{"ref": ...}``. Иначе поднимается :class:`SecretLeakError`.
+    Запрещено: (1) поле с «секретным» именем, значение которого не является ссылкой
+    ``{"ref": ...}``; (2) любое строковое значение, похожее на секрет по шаблону
+    (API-ключ, JWT, приватный ключ) в любом поле. Иначе — :class:`SecretLeakError`.
     """
 
     if isinstance(data, dict):
         for key, value in data.items():
             here = f"{path}.{key}" if path else str(key)
-            if _key_is_secret(str(key)) and not _is_ref_shaped(value):
+            if key_is_secret(str(key)) and not _is_ref_shaped(value):
                 raise SecretLeakError(
                     f"поле '{here}' выглядит как секрет, но не является ссылкой (ref)"
                 )
@@ -66,6 +48,8 @@ def scan_for_inline_secrets(data: Any, path: str = "") -> None:
     elif isinstance(data, list):
         for i, item in enumerate(data):
             scan_for_inline_secrets(item, f"{path}[{i}]")
+    elif looks_like_secret_value(data):
+        raise SecretLeakError(f"значение в поле '{path}' похоже на секрет (вынесите в ref)")
 
 
 class SecretRef(BaseModel):

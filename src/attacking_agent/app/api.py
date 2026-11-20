@@ -46,8 +46,17 @@ def create_app(
             raise HTTPException(status_code=401, detail="требуется авторизация")
         return principal
 
+    def _require_scope(principal: Principal, scope: str) -> None:
+        if not principal.has_scope(scope):
+            raise HTTPException(status_code=403, detail=f"требуется область {scope}")
+
     @app.post("/campaigns/{campaign_id}/commands")
-    def submit_command(campaign_id: str, body: CommandBody) -> dict[str, str]:
+    def submit_command(
+        campaign_id: str,
+        body: CommandBody,
+        principal: Principal = Depends(require_principal),
+    ) -> dict[str, str]:
+        _require_scope(principal, "campaign:write")
         try:
             result = command_service.submit(
                 campaign_id, body.command_id, body.kind, body.payload
@@ -62,6 +71,7 @@ def create_app(
     def get_state(
         campaign_id: str, principal: Principal = Depends(require_principal)
     ) -> dict[str, Any]:
+        _require_scope(principal, "campaign:read")
         state = read_models.get_state(campaign_id)
         if state is None:
             raise HTTPException(status_code=404, detail="кампания не найдена")
@@ -71,12 +81,14 @@ def create_app(
     def get_metrics(
         campaign_id: str, principal: Principal = Depends(require_principal)
     ) -> dict[str, Any]:
+        _require_scope(principal, "campaign:read")
         return read_models.get_metrics(campaign_id)
 
     @app.get("/campaigns/{campaign_id}/export")
     def export(
         campaign_id: str, principal: Principal = Depends(require_principal)
     ) -> dict[str, Any]:
+        _require_scope(principal, "campaign:read")
         data = read_models.export(campaign_id)
         if data is None:
             raise HTTPException(status_code=404, detail="кампания не найдена")

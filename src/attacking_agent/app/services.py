@@ -7,12 +7,22 @@ outbox в одной транзакции. Read-модели отдают тол
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import json
 import threading
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol
+
+from attacking_agent.domain.common.clock import Clock
+from attacking_agent.domain.common.secrets_detect import (
+    field_words,
+    key_is_secret,
+    looks_like_secret_value,
+)
 
 
 class CommandStatus(StrEnum):
@@ -81,23 +91,26 @@ class CommandService:
 
 
 # Множество ключей, которые нельзя экспортировать по умолчанию.
-_SECRET_KEYS = ("auth_ref", "admin", "secret", "token", "password", "credential", "private")
+_REDACTED = "<secret-redacted>"
+# Имена-слова, которые всегда вырезаются из экспорта (сверх общих маркеров).
+_EXPORT_DROP_WORDS = frozenset({"auth", "admin"})
 
 
 def strip_secrets(value: Any) -> Any:
-    """Рекурсивно удалить потенциально секретные поля и ref-значения из проекции."""
+    """Рекурсивно удалить секреты из проекции: по имени поля (границы слов), по значению
+    (шаблоны секретов) и ref-значения (``vault://``)."""
     if isinstance(value, dict):
         out: dict[str, Any] = {}
         for k, v in value.items():
-            low = str(k).lower()
-            if any(marker in low for marker in _SECRET_KEYS):
+            words = field_words(str(k))
+            if key_is_secret(str(k)) or (words & _EXPORT_DROP_WORDS):
                 continue
             out[str(k)] = strip_secrets(v)
         return out
     if isinstance(value, list):
         return [strip_secrets(v) for v in value]
-    if isinstance(value, str) and "vault://" in value:
-        return "<secret-ref-removed>"
+    if isinstance(value, str) and ("vault://" in value or looks_like_secret_value(value)):
+        return _REDACTED
     return value
 
 
@@ -129,7 +142,10 @@ class ReadModelService:
 @dataclass(frozen=True, slots=True)
 class Principal:
     subject: str
-    roles: frozenset[str] = field(default_factory=frozenset)
+    scopes: frozenset[str] = field(default_factory=frozenset)
+
+    def has_scope(self, scope: str) -> bool:
+        return scope in self.scopes
 
 
 class AuthProvider(Protocol):
@@ -138,13 +154,75 @@ class AuthProvider(Protocol):
     def authenticate(self, token: str | None) -> Principal | None: ...
 
 
-class StaticAuthProvider:
-    """Простой провайдер для MVP/тестов: проверка по набору валидных токенов."""
+_DEFAULT_SCOPES = frozenset({"campaign:read", "campaign:write"})
 
-    def __init__(self, valid_tokens: set[str]) -> None:
+
+class StaticAuthProvider:
+    """Простой провайдер для MVP/тестов: проверка по набору валидных токенов.
+
+    Для хардёных сценариев с проверкой подписи/срока/области используйте
+    :class:`SignedTokenAuthProvider`.
+    """
+
+    def __init__(
+        self, valid_tokens: set[str], scopes: frozenset[str] = _DEFAULT_SCOPES
+    ) -> None:
         self._valid = set(valid_tokens)
+        self._scopes = scopes
 
     def authenticate(self, token: str | None) -> Principal | None:
         if token is not None and token in self._valid:
-            return Principal(subject=f"user:{token}", roles=frozenset({"operator"}))
+            return Principal(subject=f"user:{token}", scopes=self._scopes)
         return None
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(text: str) -> bytes:
+    pad = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(text + pad)
+
+
+def issue_token(secret_key: str, subject: str, scopes: list[str], exp_unix: int) -> str:
+    """Выпустить HMAC-подписанный токен ``<payload>.<sig>`` (для ops/тестов)."""
+    payload = json.dumps(
+        {"sub": subject, "scopes": scopes, "exp": exp_unix}, sort_keys=True
+    ).encode("utf-8")
+    sig = hmac.new(secret_key.encode("utf-8"), payload, hashlib.sha256).digest()
+    return f"{_b64url(payload)}.{_b64url(sig)}"
+
+
+class SignedTokenAuthProvider:
+    """Проверка целостности (HMAC), срока (``exp``) и области (``scopes``) токена."""
+
+    def __init__(self, secret_key: str, clock: Clock | None = None) -> None:
+        self._secret = secret_key.encode("utf-8")
+        self._clock = clock
+
+    def _current_ts(self) -> float:
+        return self._clock.now().timestamp() if self._clock is not None else time.time()
+
+    def authenticate(self, token: str | None) -> Principal | None:
+        if not token or token.count(".") != 1:
+            return None
+        payload_b64, sig_b64 = token.split(".", 1)
+        try:
+            payload = _b64url_decode(payload_b64)
+            sig = _b64url_decode(sig_b64)
+        except (ValueError, TypeError):
+            return None
+        expected = hmac.new(self._secret, payload, hashlib.sha256).digest()
+        if not hmac.compare_digest(sig, expected):
+            return None
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(data, dict) or float(data.get("exp", 0)) < self._current_ts():
+            return None
+        scopes = data.get("scopes", [])
+        if not isinstance(scopes, list):
+            return None
+        return Principal(subject=str(data.get("sub", "")), scopes=frozenset(map(str, scopes)))
