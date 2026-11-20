@@ -49,8 +49,8 @@
 
 ## 9. state-checkpoint
 
-- [ ] 9.1 Тесты: барьер/drain, UNKNOWN блокирует READY, манифест+READY-head, BLOCKED без адаптера СС, форк не видит будущее родителя, расход не откатывается
-- [ ] 9.2 Порт `ArtifactStore` (content-addressed) + `TargetSnapshotAdapter`; локальный fs-store; протокол чекпоинта/resume/fork с lineage; тесты зелёные
+- [x] 9.1 Тесты: барьер/drain, UNKNOWN блокирует READY, манифест+READY-head, BLOCKED без адаптера СС, форк не видит будущее родителя, расход не откатывается
+- [x] 9.2 Порт `ArtifactStore` (content-addressed) + `TargetSnapshotAdapter`; локальный fs-store; протокол чекпоинта/resume/fork с lineage; тесты зелёные
 
 ## 10. operator-api
 
