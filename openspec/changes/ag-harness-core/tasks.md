@@ -37,10 +37,10 @@
 
 ## 7. semantic-memory
 
-- [ ] 7.1 Тесты Reader: TASK/ANALYSIS, фильтр scope/branch, недоступность preview в TASK, точный fallback/INCOMPLETE
-- [ ] 7.2 Тесты Writer: append-only Events, PREPARE→EVALUATE→COMMIT, candidate hash, атомарная публикация под fence, прежняя квитанция, аннулирование approval
-- [ ] 7.3 Тесты Controller: применимость, план курации передаётся Writer (не пишет напрямую)
-- [ ] 7.4 Доменные модели сущностей + порт `MemoryStore`; реализация Reader/Writer/Controller; in-memory store с branch lock; тесты зелёные
+- [x] 7.1 Тесты Reader: TASK/ANALYSIS, фильтр scope/branch, недоступность preview в TASK, точный fallback/INCOMPLETE
+- [x] 7.2 Тесты Writer: append-only Events, PREPARE→EVALUATE→COMMIT, candidate hash, атомарная публикация под fence, прежняя квитанция, аннулирование approval
+- [x] 7.3 Тесты Controller: применимость, план курации передаётся Writer (не пишет напрямую)
+- [x] 7.4 Доменные модели сущностей + порт `MemoryStore`; реализация Reader/Writer/Controller; in-memory store с branch lock; тесты зелёные
 
 ## 8. campaign-orchestration
 
