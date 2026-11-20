@@ -141,3 +141,15 @@ def test_bound_broken_on_actual_over_reserved_and_blocks_issuance() -> None:
     # выдача остановлена до разбора
     r = mgr.reserve(ref, Decimal("1.00"), "r2")
     assert r.status is ReserveStatus.INCIDENT
+
+
+def test_reservation_id_reuse_across_accounts_denied() -> None:
+    mgr = _mgr()
+    ref_a = BudgetAccountRef("camp-1", BudgetLevel.CAMPAIGN, "a", BudgetType.MONEY)
+    ref_b = BudgetAccountRef("camp-1", BudgetLevel.CAMPAIGN, "b", BudgetType.MONEY)
+    mgr.open_account(ref_a, limit=Decimal("5"), hardness=Hardness.HARD, currency="USD")
+    mgr.open_account(ref_b, limit=Decimal("5"), hardness=Hardness.HARD, currency="USD")
+    assert mgr.reserve(ref_a, Decimal("2"), "shared-id").status is ReserveStatus.OK
+    # тот же reservation_id для ДРУГОГО счёта не выдаёт бюджет
+    assert mgr.reserve(ref_b, Decimal("2"), "shared-id").status is ReserveStatus.NO_BUDGET
+    assert mgr.available(ref_b) == Decimal("5")  # остаток B не тронут

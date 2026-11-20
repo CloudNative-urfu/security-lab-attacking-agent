@@ -244,7 +244,11 @@ class LedgerManager:
                 return ReserveResult(ReserveStatus.INCIDENT)
             existing = self._store.get_reservation(reservation_id)
             if existing is not None:
-                return ReserveResult(ReserveStatus.OK, reservation_id)
+                # Идемпотентность только для того же счёта. Переиспользование
+                # reservation_id другим счётом не выдаёт бюджет (fail-closed).
+                if existing.account_key == ref.key():
+                    return ReserveResult(ReserveStatus.OK, reservation_id)
+                return ReserveResult(ReserveStatus.NO_BUDGET)
             available = acc.limit - acc.consumed - self._held_total(ref.key())
             soft_exceeded = False
             if amount > available:
