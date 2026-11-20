@@ -31,8 +31,8 @@
 
 ## 6. llm-proxy
 
-- [ ] 6.1 Тесты: запрет без допуска, учёт usage в ledger, отсутствие скрытых retry/fallback, INVALID_OUTPUT, исправление как отдельная попытка
-- [ ] 6.2 Порт `LLMClient`; доменный Proxy (допуск→вызов→usage→settle), валидация структурированного ответа; fake-клиент
+- [x] 6.1 Тесты: запрет без допуска, учёт usage в ledger, отсутствие скрытых retry/fallback, INVALID_OUTPUT, исправление как отдельная попытка
+- [x] 6.2 Порт `LLMClient`; доменный Proxy (допуск→вызов→usage→settle), валидация структурированного ответа; fake-клиент
 - [ ] 6.3 Адаптер поверх LiteLLM (retries/fallback выkey OFF), создаётся на worker-слое; тесты зелёные (адаптер — unit с заглушкой транспорта)
 
 ## 7. semantic-memory
