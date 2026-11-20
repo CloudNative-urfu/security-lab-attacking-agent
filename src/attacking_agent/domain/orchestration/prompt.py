@@ -30,9 +30,13 @@ def build_messages(
     question: str,
     evidence: list[str],
     observations: list[str],
+    strategies: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    """Собрать сообщения: доверенные задание/свидетельства + недоверенные наблюдения."""
+    """Собрать сообщения: доверенные задание/стратегии/свидетельства + недоверенные наблюдения."""
     parts: list[str] = [f"Задание: {question}"]
+    if strategies:
+        parts.append("Известные техники (доверенные, из библиотеки стратегий):")
+        parts.extend(f"- {s}" for s in strategies)
     if evidence:
         parts.append("Свидетельства памяти (доверенные):")
         parts.extend(f"- {e}" for e in evidence)

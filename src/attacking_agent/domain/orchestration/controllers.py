@@ -29,6 +29,7 @@ from attacking_agent.domain.orchestration.models import (
 )
 from attacking_agent.domain.orchestration.prompt import build_messages
 from attacking_agent.domain.policy import Decision, PolicyEnforcer
+from attacking_agent.domain.strategy import StrategyLibrary
 from attacking_agent.domain.tools import (
     Dispatcher,
     DispatchRequest,
@@ -107,6 +108,7 @@ class EpisodeController:
         tool_account: BudgetAccountRef,
         llm_reserve: Decimal,
         tool_reserve: Decimal,
+        strategy_library: StrategyLibrary | None = None,
     ) -> None:
         self._reader = reader
         self._writer = writer
@@ -118,6 +120,7 @@ class EpisodeController:
         self._tool_account = tool_account
         self._llm_reserve = llm_reserve
         self._tool_reserve = tool_reserve
+        self._strategies = strategy_library
 
     def run(self, spec: EpisodeSpec) -> EpisodeResult:
         ep = spec.episode_id
@@ -125,6 +128,7 @@ class EpisodeController:
         stop_reason = "step_limit"
         steps_taken = 0
         observations: list[str] = []  # недоверенные наблюдения СС для контекста
+        used_strategy_ids: set[str] = set()
 
         for step in range(spec.max_steps):
             steps_taken = step + 1
@@ -133,8 +137,15 @@ class EpisodeController:
             read = self._reader.read(spec.scope, ReadMode.TASK, spec.question, limit=20)
             evidence = [k.statement for k in read.knowledge]
 
+            # 1b. Релевантные стратегии (доверенная подсказка).
+            strategies: list[str] = []
+            if self._strategies is not None:
+                recs = self._strategies.retrieve(spec.scope, spec.question, limit=5)
+                strategies = [r.spec.technique for r in recs]
+                used_strategy_ids.update(r.strategy_id for r in recs)
+
             # 2. Предложение модели (под допуском и учётом расхода).
-            decision, pstatus = self._propose(spec, step, evidence, observations)
+            decision, pstatus = self._propose(spec, step, evidence, observations, strategies)
             if decision is None:
                 stop_reason = f"llm_{pstatus.value}"
                 break
@@ -205,6 +216,12 @@ class EpisodeController:
                 stop_reason = "unknown_blocked"
                 break
 
+        # Обучение библиотеки стратегий по исходу эпизода.
+        if self._strategies is not None and used_strategy_ids:
+            supported = outcome is EpisodeOutcome.SUPPORTED
+            for sid in used_strategy_ids:
+                self._strategies.note_outcome(spec.scope, sid, supported=supported)
+
         return EpisodeResult(outcome, stop_reason, steps_taken)
 
     def _propose(
@@ -213,6 +230,7 @@ class EpisodeController:
         step: int,
         evidence: list[str],
         observations: list[str],
+        strategies: list[str],
     ) -> tuple[StepDecision | None, ProxyStatus]:
         ep = spec.episode_id
         req = LLMRequest(
@@ -220,7 +238,7 @@ class EpisodeController:
             attempt_id=f"{ep}-llm-att-{step}",
             initiator="episode-controller",
             model_ref="model-x",
-            messages=build_messages(spec.question, evidence, observations),
+            messages=build_messages(spec.question, evidence, observations, strategies),
             max_tokens=256,
         )
         result = self._proxy.request(
