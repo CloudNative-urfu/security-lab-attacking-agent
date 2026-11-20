@@ -35,6 +35,7 @@ dev = [
     "bandit>=1.9.4",
     "pip-audit>=2.10.1",
     "detect-secrets>=1.5.0",
+    "temporalio>=1.36.1",
 ]
 
 [build-system]
