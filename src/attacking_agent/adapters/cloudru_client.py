@@ -26,6 +26,22 @@ ChatFactory = Callable[[], Any]
 
 _FENCE_LANG = re.compile(r"^[a-zA-Z0-9_-]+\s*")
 
+# Sampling-параметры из окружения (имя env → имя параметра API, парсер значения).
+_ENV_SAMPLING: tuple[tuple[str, str, Callable[[str], Any]], ...] = (
+    ("EVOLUTION_TEMPERATURE", "temperature", float),
+    ("EVOLUTION_TOP_P", "top_p", float),
+    ("EVOLUTION_PRESENCE_PENALTY", "presence_penalty", float),
+)
+
+
+def _env_sampling() -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    for env_name, api_name, parse in _ENV_SAMPLING:
+        raw = os.environ.get(env_name)
+        if raw:
+            params[api_name] = parse(raw)
+    return params
+
 
 def _build_default_client() -> Any:
     """Собрать `EvolutionOpenAI` из окружения. Секреты не логируются и не хранятся в коде."""
@@ -138,7 +154,7 @@ class CloudRuLLMClient:
         if json_mode is None:
             json_mode = os.environ.get("EVOLUTION_JSON_MODE", "").lower() in ("1", "true", "yes")
         self._json_mode = json_mode
-        self._extra = extra_params or {}
+        self._extra = {**_env_sampling(), **(extra_params or {})}
 
     def _get_client(self) -> Any:
         if self._client is None:

@@ -106,6 +106,24 @@ def test_json_mode_sets_response_format() -> None:
     assert comp.calls[0]["response_format"] == {"type": "json_object"}
 
 
+def test_env_sampling_params_flow_into_create(monkeypatch: Any) -> None:
+    monkeypatch.setenv("EVOLUTION_TEMPERATURE", "0.2")
+    monkeypatch.setenv("EVOLUTION_TOP_P", "0.95")
+    monkeypatch.setenv("EVOLUTION_PRESENCE_PENALTY", "0")
+    client, comp = _client(DECISION_JSON)
+    client.complete(_req())
+    assert comp.calls[0]["temperature"] == 0.2
+    assert comp.calls[0]["top_p"] == 0.95
+    assert comp.calls[0]["presence_penalty"] == 0.0
+
+
+def test_explicit_extra_overrides_env(monkeypatch: Any) -> None:
+    monkeypatch.setenv("EVOLUTION_TEMPERATURE", "0.2")
+    client, comp = _client(DECISION_JSON, extra_params={"temperature": 0.9})
+    client.complete(_req())
+    assert comp.calls[0]["temperature"] == 0.9  # явный параметр важнее env
+
+
 def test_single_physical_send_per_complete() -> None:
     client, comp = _client(DECISION_JSON)
     client.complete(_req())
