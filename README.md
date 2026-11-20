@@ -130,10 +130,12 @@ read_models, auth)` — она принимает зависимости (сер
 Это первый вертикальный проход (gate G0–G5 + API G8 на локальных адаптерах). Намеренно вне
 scope и реализовано как **порты** для последующих gate:
 
-- **Temporal + LangGraph bridge** (G5): порт `ExecutionEngine` + локальный движок. Инвариант
-  идемпотентности уже **доказан под реальным Temporal** (интеграционный тест), но production-
-  адаптер `ExecutionEngine`, оборачивающий граф эпизода в Workflow/Child Workflow, ещё не
-  реализован — это следующий шаг.
+- **Temporal** (G5): реализован production-адаптер `TemporalExecutionEngine`
+  (`adapters/temporal_engine.py`) — эпизод исполняется как Temporal Workflow → Activity;
+  протестирован на мок-runner (happy path + устойчивый retry), а инвариант идемпотентности
+  доказан под реальным Temporal. Это **крупнозернистая** первая версия (эпизод = одна
+  Activity); тонкая разбивка на пошаговые Activity (граф эпизода как Child Workflow по v8) —
+  следующий шаг. LangGraph-граф эпизода пока не вынесен в Workflow.
 - **Сетевой периметр изоляции (gVisor/containerd/netns)** (G2): есть subprocess-изоляция
   памяти/секретов и брокерский HTTP, но произвольный недоверенный код может открыть сокет
   мимо брокера — сетевой egress на уровне ОС реализуется за тем же портом `ToolRunner`.

@@ -225,6 +225,9 @@ pg = [
     { name = "psycopg", extra = ["binary"] },
     { name = "sqlalchemy" },
 ]
+temporal = [
+    { name = "temporalio" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -248,8 +251,9 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], marker = "extra == 'pg'", specifier = ">=3.2,<4" },
     { name = "pydantic", specifier = ">=2.9,<3" },
     { name = "sqlalchemy", marker = "extra == 'pg'", specifier = ">=2.0,<3" },
+    { name = "temporalio", marker = "extra == 'temporal'", specifier = ">=1.36,<2" },
 ]
-provides-extras = ["api", "llm", "pg", "otel"]
+provides-extras = ["api", "llm", "pg", "otel", "temporal"]
 
 [package.metadata.requires-dev]
 dev = [

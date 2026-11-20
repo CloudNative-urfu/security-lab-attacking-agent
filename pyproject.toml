@@ -24,6 +24,9 @@ pg = [
 otel = [
     "opentelemetry-sdk>=1.27,<2",
 ]
+temporal = [
+    "temporalio>=1.36,<2",
+]
 
 [dependency-groups]
 dev = [
