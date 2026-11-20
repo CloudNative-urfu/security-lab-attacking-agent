@@ -2,9 +2,9 @@
 
 ## 1. LLM-шлюз (сервис + сетевой адаптер)
 
-- [ ] 1.1 Тесты: домен (`LLMProxy`) работает через `HttpLLMClient` идентично локальному (ASGI in-process); одна отправка; usage/cost сохранены
-- [ ] 1.2 Сервис `services/llm_gateway` (FastAPI `POST /v1/complete`) поверх `LLMClient` (LiteLLM/fake)
-- [ ] 1.3 Адаптер `HttpLLMClient` (реализует `LLMClient`); Decimal-cost без потери точности
+- [x] 1.1 Тесты: домен (`LLMProxy`) работает через `HttpLLMClient` идентично локальному (ASGI in-process); одна отправка; usage/cost сохранены
+- [x] 1.2 Сервис `services/llm_gateway` (FastAPI `POST /v1/complete`) поверх `LLMClient` (LiteLLM/fake)
+- [x] 1.3 Адаптер `HttpLLMClient` (реализует `LLMClient`); Decimal-cost без потери точности
 
 ## 2. Tool-runner (сервис + сетевой адаптер)
 

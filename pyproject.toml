@@ -50,6 +50,7 @@ packages = ["src/attacking_agent"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "integration: интеграционные тесты, требующие внешней инфраструктуры (PostgreSQL и т.п.)",
