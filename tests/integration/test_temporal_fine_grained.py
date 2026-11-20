@@ -12,6 +12,7 @@ pytestmark = pytest.mark.integration
 try:
     from decimal import Decimal
 
+    from pydantic import BaseModel
     from temporalio.client import Client
 
     from attacking_agent.adapters.temporal_fine_grained import FineGrainedTemporalEngine
@@ -42,7 +43,6 @@ try:
         ToolContract,
         ToolRegistry,
     )
-    from pydantic import BaseModel
 
     _OK = True
 except Exception:  # pragma: no cover
@@ -51,11 +51,10 @@ except Exception:  # pragma: no cover
 TEMPORAL = "localhost:7233"
 
 
-def _executor(runs: list[str]) -> "EpisodeStepExecutor":
+def _executor(runs: list[str]):
     class _P(BaseModel):
         url: str
 
-    scope = Scope(campaign_id="c", branch_id="b", target_ref="t")
     mgr = LedgerManager(
         InMemoryBudgetStore(), clock=ManualClock(), id_factory=SequentialIdFactory()
     )
