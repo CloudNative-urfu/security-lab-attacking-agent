@@ -1,5 +1,6 @@
 """Capability llm-proxy: единый доверенный доступ к модели."""
 
+from attacking_agent.domain.llm.journal import InMemoryLLMJournal, LLMJournal
 from attacking_agent.domain.llm.proxy import (
     LLMClient,
     LLMProxy,
@@ -11,7 +12,9 @@ from attacking_agent.domain.llm.proxy import (
 )
 
 __all__ = [
+    "InMemoryLLMJournal",
     "LLMClient",
+    "LLMJournal",
     "LLMProxy",
     "LLMRequest",
     "LLMResponse",

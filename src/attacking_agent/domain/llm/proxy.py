@@ -23,6 +23,7 @@ from attacking_agent.domain.budget import (
     StartStatus,
 )
 from attacking_agent.domain.common.errors import BudgetError
+from attacking_agent.domain.llm.journal import InMemoryLLMJournal, LLMJournal
 
 # Исключения, означающие неоднозначный исход физической отправки.
 _AMBIGUOUS_EXCEPTIONS = (TimeoutError,)
@@ -83,9 +84,26 @@ class ProxyResult:
 
 
 class LLMProxy:
-    def __init__(self, client: LLMClient, ledger: LedgerManager) -> None:
+    def __init__(
+        self,
+        client: LLMClient,
+        ledger: LedgerManager,
+        journal: LLMJournal | None = None,
+    ) -> None:
         self._client = client
         self._ledger = ledger
+        self._journal = journal or InMemoryLLMJournal()
+
+    def _finish(
+        self, response: LLMResponse, schema: type[BaseModel] | None
+    ) -> ProxyResult:
+        if schema is not None:
+            try:
+                structured = schema.model_validate(response.structured or {})
+            except PydanticValidationError as exc:
+                return ProxyResult(ProxyStatus.INVALID_OUTPUT, response, reason=str(exc))
+            return ProxyResult(ProxyStatus.OK, response, structured)
+        return ProxyResult(ProxyStatus.OK, response)
 
     def request(
         self,
@@ -95,6 +113,11 @@ class LLMProxy:
         reservation_id: str,
         schema: type[BaseModel] | None = None,
     ) -> ProxyResult:
+        # 0. Replay: записанный ответ той же попытки — без нового вызова и без учёта.
+        recorded = self._journal.get(req.op_id, req.attempt_id)
+        if recorded is not None:
+            return self._finish(recorded, schema)
+
         # 1. Допуск: без действующего permit запрос не отправляется (fail-closed:
         # любая ошибка допуска, включая отсутствие/мисконфиг счёта, блокирует отправку).
         try:
@@ -107,9 +130,16 @@ class LLMProxy:
         except BudgetError as exc:
             return ProxyResult(ProxyStatus.DENIED, reason=str(exc))
 
+        # 2. Атомарный захват слота попытки — против конкурентной двойной отправки.
+        if not self._journal.claim(req.op_id, req.attempt_id):
+            again = self._journal.get(req.op_id, req.attempt_id)
+            if again is not None:
+                return self._finish(again, schema)
+            return ProxyResult(ProxyStatus.DENIED, reason="попытка уже выполняется")
+
         charge_id = f"chg-{req.attempt_id}"
 
-        # 2. Одна физическая отправка, без скрытых retry/fallback.
+        # 3. Одна физическая отправка, без скрытых retry/fallback.
         try:
             response = self._client.complete(req)
         except _AMBIGUOUS_EXCEPTIONS as exc:
@@ -119,15 +149,9 @@ class LLMProxy:
             self._ledger.settle(req.attempt_id, charge_id, None)
             return ProxyResult(ProxyStatus.ERROR, reason=str(exc))
 
-        # 3. Учёт фактического расхода.
+        # 4. Запись ответа (для replay) и учёт фактического расхода.
+        self._journal.record(req.op_id, req.attempt_id, response)
         self._ledger.settle(req.attempt_id, charge_id, response.cost)
 
-        # 4. Валидация структурированного ответа (смысл проверяет инициатор).
-        if schema is not None:
-            try:
-                structured = schema.model_validate(response.structured or {})
-            except PydanticValidationError as exc:
-                return ProxyResult(ProxyStatus.INVALID_OUTPUT, response, reason=str(exc))
-            return ProxyResult(ProxyStatus.OK, response, structured)
-
-        return ProxyResult(ProxyStatus.OK, response)
+        # 5. Валидация структурированного ответа (смысл проверяет инициатор).
+        return self._finish(response, schema)
