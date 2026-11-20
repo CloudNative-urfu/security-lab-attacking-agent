@@ -13,6 +13,13 @@ from attacking_agent.domain.memory.entities import (
     ReadMode,
     composition_hash,
 )
+from attacking_agent.domain.memory.retrieval import (
+    Embedder,
+    EmbeddingScorer,
+    RelevanceScorer,
+    TokenOverlapScorer,
+    cosine,
+)
 from attacking_agent.domain.memory.roles import (
     AppendResult,
     AppendStatus,
@@ -41,6 +48,8 @@ __all__ = [
     "Controller",
     "CurationPlan",
     "Edge",
+    "Embedder",
+    "EmbeddingScorer",
     "Event",
     "EventInput",
     "InMemoryMemoryStore",
@@ -51,7 +60,10 @@ __all__ = [
     "ReadPackage",
     "ReadStatus",
     "Reader",
+    "RelevanceScorer",
+    "TokenOverlapScorer",
     "Writer",
     "composition_hash",
+    "cosine",
     "scope_key",
 ]

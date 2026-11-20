@@ -23,6 +23,7 @@ from attacking_agent.domain.memory.entities import (
     ReadMode,
     composition_hash,
 )
+from attacking_agent.domain.memory.retrieval import RelevanceScorer, TokenOverlapScorer
 from attacking_agent.domain.memory.store import MemoryStore, scope_key
 
 
@@ -70,20 +71,29 @@ class CommitResult:
 
 
 class Reader:
-    """Чтение памяти в режимах TASK/ANALYSIS с обязательным фильтром области."""
+    """Чтение памяти в режимах TASK/ANALYSIS с обязательным фильтром области.
 
-    def __init__(self, store: MemoryStore) -> None:
+    Ранжирование по релевантности (порт :class:`RelevanceScorer`; по умолчанию —
+    перекрытие токенов). Фильтр области применяется до ранжирования; чужая ветка
+    недоступна по построению ключа области.
+    """
+
+    def __init__(self, store: MemoryStore, scorer: RelevanceScorer | None = None) -> None:
         self._store = store
+        self._scorer = scorer or TokenOverlapScorer()
 
     def read(self, scope: Scope, mode: ReadMode, query: str, limit: int) -> ReadPackage:
         version = self._store.branch_version(scope)
         # Источник — только зафиксированные записи текущей ветки (кандидаты-preview
-        # сюда не попадают; чужая ветка недоступна по построению ключа области).
+        # сюда не попадают).
         nodes = self._store.committed_knowledge(scope)
-        matched = [n for n in nodes if query.lower() in n.statement.lower()]
         if mode is ReadMode.TASK:
-            matched = [n for n in matched if not n.superseded]
-        matched = matched[:limit]
+            nodes = [n for n in nodes if not n.superseded]
+        scored = [(n, self._scorer.score(query, n.statement)) for n in nodes]
+        ranked = sorted(
+            (ns for ns in scored if ns[1] > 0.0), key=lambda ns: ns[1], reverse=True
+        )
+        matched = [n for n, _ in ranked[:limit]]
         if matched:
             return ReadPackage(ReadStatus.OK, mode, version, matched)
         # Нет совпадений: при нехватке данных — INCOMPLETE/NO_MATCH, но не чужие записи.
