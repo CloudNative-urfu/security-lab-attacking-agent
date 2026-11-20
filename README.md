@@ -54,6 +54,20 @@ nix run nixpkgs#ruff -- check src tests # линтер (ruff из nixpkgs на N
 scripts/check.sh                        # единые ворота (ruff+mypy+bandit+detect-secrets+pip-audit+pytest+openspec)
 ```
 
+### Доказательства на реальной инфраструктуре
+
+```bash
+docker compose up -d postgres temporal   # PostgreSQL 16 (pgvector) + Temporal 1.25 (dev)
+AG_PG_URL='postgresql+psycopg://ag:ag@localhost:5433/ag' \
+AG_TEMPORAL='localhost:7233' uv run pytest tests/integration -q
+```
+
+Интеграционные тесты (авто-скип без инфраструктуры) доказывают на реальных системах:
+- **кросс-процессный бюджет и branch-fence памяти** на PostgreSQL — настоящими отдельными
+  ОС-процессами (multiprocessing): жёсткий лимит и атомарность публикации держатся;
+- **идемпотентность под Temporal** — при retry Activity (сбой после отправки) durable-журнал
+  не допускает повторной физической отправки (ровно одна).
+
 ### Ворота качества и политика (AI-driven PDLC)
 
 Единые автоматические ворота (`scripts/check.sh`, CI `.forgejo/workflows/ci.yaml`,
@@ -116,8 +130,10 @@ read_models, auth)` — она принимает зависимости (сер
 Это первый вертикальный проход (gate G0–G5 + API G8 на локальных адаптерах). Намеренно вне
 scope и реализовано как **порты** для последующих gate:
 
-- **Temporal + LangGraph bridge** (G5): порт `ExecutionEngine` + локальный детерминированный
-  движок; Temporal-адаптер — после фиксации совместимого release/lock.
+- **Temporal + LangGraph bridge** (G5): порт `ExecutionEngine` + локальный движок. Инвариант
+  идемпотентности уже **доказан под реальным Temporal** (интеграционный тест), но production-
+  адаптер `ExecutionEngine`, оборачивающий граф эпизода в Workflow/Child Workflow, ещё не
+  реализован — это следующий шаг.
 - **Сетевой периметр изоляции (gVisor/containerd/netns)** (G2): есть subprocess-изоляция
   памяти/секретов и брокерский HTTP, но произвольный недоверенный код может открыть сокет
   мимо брокера — сетевой egress на уровне ОС реализуется за тем же портом `ToolRunner`.
