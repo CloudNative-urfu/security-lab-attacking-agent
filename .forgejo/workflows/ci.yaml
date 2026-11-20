@@ -1,0 +1,39 @@
+# CI: единые ворота качества и безопасности (engineering-policy).
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Синхронизировать окружение
+        run: uv sync --extra api --extra pg
+
+      - name: ruff (стиль + безопасность)
+        run: uv run ruff check src tests
+
+      - name: mypy (строгая типизация)
+        run: uv run mypy src
+
+      - name: bandit (сканер безопасности)
+        run: uv run bandit -r src -q
+
+      - name: detect-secrets (секреты вне baseline)
+        run: bash scripts/_detect_secrets.sh
+
+      - name: pip-audit (аудит зависимостей)
+        run: uv run pip-audit --progress-spinner off
+
+      - name: pytest (тесты)
+        run: uv run pytest -q
+
+      - name: openspec (валидация спецификаций)
+        run: npx -y @fission-ai/openspec@2.1.0 validate --specs --strict

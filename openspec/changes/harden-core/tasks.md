@@ -2,12 +2,12 @@
 
 ## 0. Умные ворота качества и политика (engineering-policy)
 
-- [ ] 0.1 Включить ruff-правила безопасности/качества (`S`, `PERF`, `PTH`, `C4`, `RET`, `PIE`) с обоснованными per-file-ignores
-- [ ] 0.2 Подключить bandit, detect-secrets (baseline), pip-audit; закрыть известную dev-уязвимость (pytest)
-- [ ] 0.3 `scripts/check.sh` — единая команда ворот (ruff+mypy+bandit+detect-secrets+pip-audit+pytest+openspec)
-- [ ] 0.4 `.pre-commit-config.yaml` и `.forgejo/workflows/ci.yaml` на тот же набор ворот
-- [ ] 0.5 `ENGINEERING_POLICY.md` (политика реализации, инварианты, критик-ревью) — Doc-as-Code
-- [ ] 0.6 Прогнать ворота по текущему коду; устранить находки
+- [x] 0.1 Включить ruff-правила безопасности/качества (`S`, `PERF`, `PTH`, `C4`, `RET`, `PIE`) с обоснованными per-file-ignores
+- [x] 0.2 Подключить bandit, detect-secrets (baseline), pip-audit; закрыть известную dev-уязвимость (pytest)
+- [x] 0.3 `scripts/check.sh` — единая команда ворот (ruff+mypy+bandit+detect-secrets+pip-audit+pytest+openspec)
+- [x] 0.4 `.pre-commit-config.yaml` и `.forgejo/workflows/ci.yaml` на тот же набор ворот
+- [x] 0.5 `ENGINEERING_POLICY.md` (политика реализации, инварианты, критик-ревью) — Doc-as-Code
+- [x] 0.6 Прогнать ворота по текущему коду; устранить находки
 
 ## 1. Распределённый бюджет (budget-ledger)
 

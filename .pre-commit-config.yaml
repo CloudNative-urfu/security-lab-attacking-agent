@@ -1,0 +1,30 @@
+# Pre-commit: локальные ворота перед коммитом (тот же набор, что CI).
+# Установка: uv run pre-commit install   (pre-commit добавить в dev при использовании)
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (стиль+безопасность)
+        entry: bash -c 'uv run ruff check src tests 2>/dev/null || nix run nixpkgs#ruff -- check src tests'
+        language: system
+        pass_filenames: false
+      - id: mypy
+        name: mypy (строгая типизация)
+        entry: uv run mypy src
+        language: system
+        pass_filenames: false
+      - id: bandit
+        name: bandit (безопасность)
+        entry: uv run bandit -r src -q
+        language: system
+        pass_filenames: false
+      - id: detect-secrets
+        name: detect-secrets (секреты вне baseline)
+        entry: bash scripts/_detect_secrets.sh
+        language: system
+        pass_filenames: false
+      - id: pytest
+        name: pytest (тесты)
+        entry: uv run pytest -q
+        language: system
+        pass_filenames: false
