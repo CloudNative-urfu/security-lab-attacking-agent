@@ -60,16 +60,15 @@ def _build_default_client() -> Any:
         raise RuntimeError(
             "Не заданы EVOLUTION_KEY_ID / EVOLUTION_SECRET / EVOLUTION_BASE_URL."
         )
-    kwargs: dict[str, Any] = {
-        "key_id": key_id,
-        "secret": secret,
-        "base_url": base_url,
-        "max_retries": 0,  # никаких скрытых повторов внутри клиента
-    }
-    token_url = os.environ.get("EVOLUTION_TOKEN_URL")
-    if token_url:
-        kwargs["token_url"] = token_url
-    return EvolutionOpenAI(**kwargs)
+    # token_url не форвардится в конструктор: EvolutionOpenAI пробрасывает лишние kwargs в
+    # OpenAI.__init__, который его не знает. IAM-endpoint берётся библиотекой по умолчанию
+    # (при необходимости переопределяется её собственным механизмом/переменной окружения).
+    return EvolutionOpenAI(
+        key_id=key_id,
+        secret=secret,
+        base_url=base_url,
+        max_retries=0,  # никаких скрытых повторов внутри клиента
+    )
 
 
 def _get(obj: Any, *path: str | int) -> Any:
