@@ -168,3 +168,18 @@ def test_fork_does_not_reset_ledger(tmp_path: Path) -> None:
     assert ckpt.manifest is not None
     mgr.fork(ckpt.manifest, new_branch_id="fork-1")
     assert ledger.consumed(ref) == Decimal("2")  # расход не откатился
+
+
+def test_diagnostic_export_without_ss_adapter(tmp_path: Path) -> None:
+    mem = InMemoryMemoryStore()
+    scope = _scope()
+    _commit_knowledge(mem, scope, "знание-для-диагностики")
+    # менеджер БЕЗ адаптера снимка СС: полный чекпоинт BLOCKED
+    mgr = _manager(tmp_path, mem, InMemoryCallJournal(), with_adapter=False)
+    assert mgr.create_checkpoint(scope, command_id="cmd-1").status is CheckpointStatus.BLOCKED
+    # но диагностический экспорт доступен и явно не восстановим
+    export = mgr.diagnostic_export(scope)
+    assert export.diagnostic_only is True
+    assert export.restorable is False
+    assert export.part_hash  # память захвачена в content-addressed store
+    assert export.memory_version >= 1

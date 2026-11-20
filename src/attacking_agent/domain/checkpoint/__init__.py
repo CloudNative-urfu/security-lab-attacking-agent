@@ -4,6 +4,7 @@ from attacking_agent.domain.checkpoint.manager import (
     CheckpointManager,
     CheckpointResult,
     CheckpointStatus,
+    DiagnosticExport,
     Manifest,
 )
 from attacking_agent.domain.checkpoint.stores import (
@@ -20,6 +21,7 @@ __all__ = [
     "CheckpointManager",
     "CheckpointResult",
     "CheckpointStatus",
+    "DiagnosticExport",
     "InMemoryManifestStore",
     "LocalArtifactStore",
     "Manifest",

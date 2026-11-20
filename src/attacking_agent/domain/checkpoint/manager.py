@@ -53,6 +53,20 @@ class CheckpointResult:
     reason: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class DiagnosticExport:
+    """Снимок состояния АГ для анализа. НЕ полный чекпоинт: не восстанавливает АГ+СС."""
+
+    export_id: str
+    campaign_id: str
+    branch_id: str
+    target_ref: str
+    memory_version: int
+    part_hash: str
+    diagnostic_only: bool = True
+    restorable: bool = False
+
+
 class CheckpointManager:
     def __init__(
         self,
@@ -114,6 +128,26 @@ class CheckpointManager:
         )
         self._manifests.put(key, command_id, manifest)
         return CheckpointResult(CheckpointStatus.READY, manifest)
+
+    def diagnostic_export(self, scope: Scope) -> DiagnosticExport:
+        """Экспорт состояния АГ (память ветки) без адаптера снимка СС.
+
+        Явно diagnostic-only и не restorable: не обещает восстановление АГ+СС и не является
+        полным чекпоинтом. Доступен там, где полный чекпоинт возвращает BLOCKED.
+        """
+        nodes = self._memory.snapshot_knowledge(scope)
+        blob = json.dumps(
+            [n.statement for n in nodes], sort_keys=True, ensure_ascii=False
+        ).encode("utf-8")
+        part_hash = self._artifacts.put(blob)
+        return DiagnosticExport(
+            export_id=self._ids.new_id("diag"),
+            campaign_id=scope.campaign_id,
+            branch_id=scope.branch_id,
+            target_ref=scope.target_ref,
+            memory_version=self._memory.branch_version(scope),
+            part_hash=part_hash,
+        )
 
     def fork(self, manifest: Manifest, new_branch_id: str) -> Scope:
         """Создать форк из исторической точки: независимая ветка и target binding."""
