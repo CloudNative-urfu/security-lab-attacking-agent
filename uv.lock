@@ -217,9 +217,6 @@ api = [
     { name = "httpx" },
     { name = "uvicorn" },
 ]
-cloudru = [
-    { name = "evolution-openai" },
-]
 llm = [
     { name = "litellm" },
 ]
@@ -250,7 +247,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "evolution-openai", specifier = ">=1.0.4" },
-    { name = "evolution-openai", marker = "extra == 'cloudru'", specifier = ">=0.1" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115,<1" },
     { name = "httpx", marker = "extra == 'api'", specifier = ">=0.27,<1" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.50,<2" },
@@ -261,7 +257,7 @@ requires-dist = [
     { name = "temporalio", marker = "extra == 'temporal'", specifier = ">=1.36,<2" },
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.54.0" },
 ]
-provides-extras = ["api", "llm", "cloudru", "pg", "otel", "temporal"]
+provides-extras = ["api", "llm", "pg", "otel", "temporal"]
 
 [package.metadata.requires-dev]
 dev = [

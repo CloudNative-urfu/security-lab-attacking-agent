@@ -42,6 +42,9 @@ class FineGrainedEpisodeWorkflow:
                 if sid not in used_ids:
                     used_ids.append(sid)
 
+            if pr["refusal"]:
+                stop_reason = "model_refused"
+                break
             if not pr["ok"]:
                 stop_reason = f"llm_{pr['llm_status']}"
                 break

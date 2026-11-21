@@ -49,6 +49,8 @@ class ProposeResult:
     params: dict[str, Any] = field(default_factory=dict)
     hypothesis: str = ""
     used_strategy_ids: list[str] = field(default_factory=list)
+    refusal: bool = False
+    raw: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +72,10 @@ _NEED_EVIDENCE = LoopAction(False, "need_evidence")
 
 def decide_after_propose(pr: ProposeResult) -> LoopAction:
     """Детерминированное решение после предложения модели."""
+    if pr.refusal:
+        # Модель отказалась/не дала решения по схеме — штатный исход (сработал guardrail),
+        # а не сбой: пайплайн не падает, отказ фиксируется как сигнал.
+        return LoopAction(True, "model_refused")
     if not pr.ok:
         return LoopAction(True, f"llm_{pr.llm_status}")
     if pr.kind == "FINISH":
@@ -161,6 +167,26 @@ class EpisodeStepExecutor:
                 params=dict(d.params),
                 hypothesis=d.hypothesis,
                 used_strategy_ids=used_ids,
+            )
+        if result.status is ProxyStatus.INVALID_OUTPUT:
+            # Модель ответила, но не дала решения по схеме (отказ/проза/битый JSON) — штатный
+            # исследовательский сигнал: фиксируем метрику и durable-след, пайплайн не падает.
+            raw = result.response.content[:500] if result.response is not None else ""
+            self._metrics.record_refusal(result.reason, raw)
+            self._writer.append_event(
+                spec.scope,
+                EventInput(
+                    event_id=f"{ep}-refusal-{step}",
+                    hash=step_hash(ep, step, "refusal"),
+                    source="episode-controller",
+                    kind="refusal",
+                    payload={"reason": result.reason, "raw": raw},
+                    episode_id=ep,
+                ),
+            )
+            return ProposeResult(
+                ok=False, llm_status=result.status.value,
+                used_strategy_ids=used_ids, refusal=True, raw=raw,
             )
         return ProposeResult(ok=False, llm_status=result.status.value, used_strategy_ids=used_ids)
 

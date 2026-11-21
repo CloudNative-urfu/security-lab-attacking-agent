@@ -84,6 +84,9 @@ def run_episode_steps(activities: StepActivities, spec_dict: dict[str, Any]) -> 
         pr = activities.propose({**spec_dict, "step": step, "observations": observations})
         used_ids.update(pr["used_strategy_ids"])
 
+        if pr["refusal"]:
+            stop_reason = "model_refused"
+            break
         if not pr["ok"]:
             stop_reason = f"llm_{pr['llm_status']}"
             break
