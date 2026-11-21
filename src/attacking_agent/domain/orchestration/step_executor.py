@@ -106,6 +106,7 @@ class EpisodeStepExecutor:
         llm_reserve: Decimal,
         tool_reserve: Decimal,
         strategy_library: StrategyLibrary | None = None,
+        max_tokens: int = 1024,
     ) -> None:
         self._reader = reader
         self._writer = writer
@@ -118,6 +119,8 @@ class EpisodeStepExecutor:
         self._llm_reserve = llm_reserve
         self._tool_reserve = tool_reserve
         self._strategies = strategy_library
+        # Reasoning-моделям нужен запас токенов на «размышление» перед финальным JSON.
+        self._max_tokens = max_tokens
 
     def propose(self, spec: EpisodeSpec, step: int, observations: list[str]) -> ProposeResult:
         read = self._reader.read(spec.scope, ReadMode.TASK, spec.question, limit=20)
@@ -137,7 +140,7 @@ class EpisodeStepExecutor:
             initiator="episode-controller",
             model_ref="model-x",
             messages=build_messages(spec.question, evidence, observations, strategies),
-            max_tokens=256,
+            max_tokens=self._max_tokens,
         )
         result = self._proxy.request(
             req,

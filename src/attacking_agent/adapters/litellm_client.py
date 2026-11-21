@@ -25,7 +25,8 @@ def _default_cost(response: Any) -> Decimal:
     try:
         import litellm
 
-        return Decimal(str(litellm.completion_cost(completion_response=response)))
+        cost_fn = litellm.completion_cost  # type: ignore[attr-defined]
+        return Decimal(str(cost_fn(completion_response=response)))
     except Exception:
         return Decimal("0")
 

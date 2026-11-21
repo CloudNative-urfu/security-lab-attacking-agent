@@ -19,9 +19,6 @@ api = [
 llm = [
     "litellm>=1.50,<2",
 ]
-cloudru = [
-    "evolution-openai>=0.1",
-]
 pg = [
     "sqlalchemy>=2.0,<3",
     "psycopg[binary]>=3.2,<4",

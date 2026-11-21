@@ -56,6 +56,27 @@ def main() -> int:
     from attacking_agent.domain.orchestration.prompt import build_messages
 
     client = CloudRuLLMClient()
+    messages = build_messages(
+        question="Проверка связи. Верни kind=INCONCLUSIVE одним объектом JSON.",
+        evidence=[],
+        observations=[],
+    )
+
+    # --- Сырой диагностический вызов: увидеть, что реально отдаёт деплой ---
+    raw = client._get_client().chat.completions.create(
+        model=os.environ.get("EVOLUTION_MODEL", "default"),
+        messages=messages,
+        max_tokens=2048,
+    )
+    choice = raw.choices[0]
+    msg = choice.message
+    print(f"[smoke] finish_reason: {choice.finish_reason}")
+    print(f"[smoke] content: {(msg.content or '')[:400]!r}")
+    for field in ("reasoning_content", "reasoning"):
+        val = getattr(msg, field, None)
+        if val:
+            print(f"[smoke] {field} (до 400): {str(val)[:400]!r}")
+
     mgr = LedgerManager(
         InMemoryBudgetStore(), clock=ManualClock(), id_factory=SequentialIdFactory()
     )
@@ -68,12 +89,8 @@ def main() -> int:
         attempt_id="smoke-att",
         initiator="smoke",
         model_ref="model-x",
-        messages=build_messages(
-            question="Проверка связи. Верни kind=INCONCLUSIVE одним объектом JSON.",
-            evidence=[],
-            observations=[],
-        ),
-        max_tokens=256,
+        messages=messages,
+        max_tokens=2048,
     )
     result = proxy.request(
         req, account_ref=acc, reserve_amount=Decimal("1"),

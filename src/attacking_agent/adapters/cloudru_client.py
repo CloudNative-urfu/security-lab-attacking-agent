@@ -49,8 +49,8 @@ def _build_default_client() -> Any:
         from evolution_openai import EvolutionOpenAI
     except ImportError as exc:  # pragma: no cover - зависит от установки опционального пакета
         raise RuntimeError(
-            "Не установлен пакет 'evolution-openai'. Установите extra: pip install "
-            "'attacking-agent[cloudru]' (или evolution-openai напрямую)."
+            "Не установлен пакет 'evolution-openai' (должен быть в основных зависимостях). "
+            "Выполните синхронизацию окружения: uv sync."
         ) from exc
 
     key_id = os.environ.get("EVOLUTION_KEY_ID")
@@ -179,11 +179,21 @@ class CloudRuLLMClient:
         response = client.chat.completions.create(**kwargs)
 
         content = _get(response, "choices", 0, "message", "content")
+        text = content if isinstance(content, str) else None
+        structured = _extract_json(text)
+        if structured is None:
+            # Reasoning-модели иногда оставляют content пустым, а JSON — в reasoning-поле.
+            for field in ("reasoning_content", "reasoning"):
+                reasoning = _get(response, "choices", 0, "message", field)
+                structured = _extract_json(reasoning if isinstance(reasoning, str) else None)
+                if structured is not None:
+                    break
+
         prompt_tokens = int(_get(response, "usage", "prompt_tokens") or 0)
         completion_tokens = int(_get(response, "usage", "completion_tokens") or 0)
         return LLMResponse(
             content=str(content or ""),
-            structured=_extract_json(content if isinstance(content, str) else None),
+            structured=structured,
             usage=Usage(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
             cost=self._cost(prompt_tokens, completion_tokens),
         )

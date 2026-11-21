@@ -23,16 +23,22 @@ DECISION_JSON = (
 
 
 class _FakeCompletions:
-    def __init__(self, content: str, prompt: int = 11, completion: int = 7) -> None:
+    def __init__(
+        self, content: str, prompt: int = 11, completion: int = 7, reasoning: str = ""
+    ) -> None:
         self._content = content
         self._prompt = prompt
         self._completion = completion
+        self._reasoning = reasoning
         self.calls: list[dict[str, Any]] = []
 
     def create(self, **kwargs: Any) -> dict[str, Any]:
         self.calls.append(kwargs)
+        message: dict[str, Any] = {"content": self._content}
+        if self._reasoning:
+            message["reasoning_content"] = self._reasoning
         return {
-            "choices": [{"message": {"content": self._content}}],
+            "choices": [{"message": message}],
             "usage": {"prompt_tokens": self._prompt, "completion_tokens": self._completion},
         }
 
@@ -91,6 +97,24 @@ def test_non_json_yields_none_structured() -> None:
     resp = client.complete(_req())
     assert resp.structured is None
     assert resp.content == "просто текст без json"
+
+
+def test_reasoning_field_used_when_content_empty() -> None:
+    # reasoning-модель: content пуст, но валидный JSON просочился в reasoning_content
+    comp = _FakeCompletions("", reasoning=f"Размышляю. {DECISION_JSON}")
+    client = CloudRuLLMClient(chat_factory=lambda: _FakeChatClient(comp))
+    resp = client.complete(_req())
+    assert resp.structured is not None
+    assert resp.structured["tool"] == "probe"
+    assert resp.content == ""  # сырой content сохраняется как есть
+
+
+def test_content_json_wins_over_reasoning() -> None:
+    comp = _FakeCompletions(DECISION_JSON, reasoning='{"kind": "FINISH"}')
+    client = CloudRuLLMClient(chat_factory=lambda: _FakeChatClient(comp))
+    resp = client.complete(_req())
+    assert resp.structured is not None
+    assert resp.structured["kind"] == "ACTION"  # приоритет у content
 
 
 def test_config_model_used_not_placeholder_ref() -> None:

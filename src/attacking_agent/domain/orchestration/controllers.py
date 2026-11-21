@@ -102,6 +102,7 @@ class EpisodeController:
         llm_reserve: Decimal,
         tool_reserve: Decimal,
         strategy_library: StrategyLibrary | None = None,
+        max_tokens: int = 1024,
     ) -> None:
         self._reader = reader
         self._writer = writer
@@ -126,6 +127,7 @@ class EpisodeController:
             llm_reserve=llm_reserve,
             tool_reserve=tool_reserve,
             strategy_library=strategy_library,
+            max_tokens=max_tokens,
         )
 
     def run(self, spec: EpisodeSpec) -> EpisodeResult:
