@@ -84,6 +84,14 @@ uv run python scripts/smoke_cloudru.py   # один реальный запро�
 
 Секреты читаются только из окружения и в код/вывод не попадают. `.env` — в `.gitignore`.
 
+**Своя self-hosted модель (vLLM / OpenAI-совместимый endpoint).** Отдельный адаптер не нужен —
+подойдёт `LiteLLMClient` (тот же порт `LLMClient`): `LiteLLMClient(model="openai/<имя>",
+extra_params={"api_base": "http://host:8000/v1", "api_key": "<ключ>"})`. CloudRu-адаптер нужен
+только из-за IAM-токенов Cloud.ru; у ванильного vLLM со статичным ключом этого слоя нет.
+Безопасность — на харнесе (policy/scope/allowlist/бюджет), а не на «сдержанности» модели:
+предложение любой модели всё равно режется по области. Отказ модели обрабатывается штатно
+(`stop_reason=model_refused`, метрика `refusals`) — пайплайн не падает.
+
 ### Ворота качества и политика (AI-driven PDLC)
 
 Единые автоматические ворота (`scripts/check.sh`, CI `.forgejo/workflows/ci.yaml`,
