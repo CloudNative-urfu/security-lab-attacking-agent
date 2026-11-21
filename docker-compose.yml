@@ -10,6 +10,9 @@ services:
       POSTGRES_DB: ag
     ports:
       - "5433:5432"
+    volumes:
+      # Создаёт отдельную БД litellm на свежем стенде (LiteLLM/Prisma требует чистую БД).
+      - ./docker/postgres-initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ag -d ag"]
       interval: 2s
@@ -44,7 +47,7 @@ services:
         condition: service_healthy
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-dev-master}
-      DATABASE_URL: postgresql://ag:ag@postgres:5432/ag
+      DATABASE_URL: postgresql://ag:ag@postgres:5432/litellm
       STORE_MODEL_IN_DB: "True"
       VLLM_API_BASE: ${VLLM_API_BASE:-http://host.docker.internal:8000/v1}
       VLLM_API_KEY: ${VLLM_API_KEY:-dummy}

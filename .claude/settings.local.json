@@ -3,7 +3,8 @@
     "allow": [
       "mcp__plugin_hm_nextcloud__files_list",
       "Bash(git config *)",
-      "Bash(timeout 200 uv add --dev 'pytest>=9.0.3')"
+      "Bash(timeout 200 uv add --dev 'pytest>=9.0.3')",
+      "Bash(docker compose *)"
     ]
   }
 }
