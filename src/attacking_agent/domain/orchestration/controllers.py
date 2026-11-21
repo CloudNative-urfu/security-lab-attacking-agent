@@ -102,7 +102,7 @@ class EpisodeController:
         llm_reserve: Decimal,
         tool_reserve: Decimal,
         strategy_library: StrategyLibrary | None = None,
-        max_tokens: int = 1024,
+        max_tokens: int = 2048,
     ) -> None:
         self._reader = reader
         self._writer = writer

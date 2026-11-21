@@ -68,6 +68,22 @@ AG_TEMPORAL='localhost:7233' uv run pytest tests/integration -q
 - **идемпотентность под Temporal** — при retry Activity (сбой после отправки) durable-журнал
   не допускает повторной физической отправки (ровно одна).
 
+### Живая LLM агента (Cloud.ru Evolution ML Inference)
+
+Транспорт модели — порт `LLMClient`; адаптер `adapters/cloudru_client.py` работает поверх
+OpenAI-совместимого деплоя Cloud.ru (`evolution-openai`, IAM-токен крутит библиотека). Скрытых
+retry нет (`max_retries=0`). Поддержаны reasoning-модели (при пустом `content` JSON берётся из
+`reasoning_content`; `max_tokens` настраивается, дефолт 2048). Вывод валидируется по схеме
+`StepDecision`; системный prompt задаёт честную рамку авторизованного оборонительного
+исследования и отделяет недоверенные наблюдения от инструкций.
+
+```bash
+cp example.env .env         # вписать EVOLUTION_KEY_ID / EVOLUTION_SECRET (секреты — только в .env)
+uv run python scripts/smoke_cloudru.py   # один реальный запрос: finish_reason, сырой ответ, StepDecision
+```
+
+Секреты читаются только из окружения и в код/вывод не попадают. `.env` — в `.gitignore`.
+
 ### Ворота качества и политика (AI-driven PDLC)
 
 Единые автоматические ворота (`scripts/check.sh`, CI `.forgejo/workflows/ci.yaml`,
