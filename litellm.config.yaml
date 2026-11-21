@@ -1,0 +1,16 @@
+# LiteLLM Proxy — централизованный доступ агента к моделям. UI: http://localhost:4000/ui
+# Это dev-шаблон. Модели/виртуальные ключи/бюджеты можно добавлять прямо в UI — они
+# сохраняются в БД (STORE_MODEL_IN_DB=True), файл трогать не обязательно.
+#
+# Агент ходит по стабильному имени model_name (ниже — "agent-llm"); какой backend за ним
+# стоит (vLLM, другой OpenAI-совместимый endpoint), меняется здесь или в UI, не в коде агента.
+model_list:
+  - model_name: agent-llm
+    litellm_params:
+      model: openai/your-vllm-model      # имя модели, как она названа в вашем vLLM
+      api_base: os.environ/VLLM_API_BASE  # напр. http://host.docker.internal:8000/v1
+      api_key: os.environ/VLLM_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL   # общая БД ag (persist моделей/ключей/расхода)

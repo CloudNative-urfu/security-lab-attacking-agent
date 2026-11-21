@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
@@ -90,3 +91,19 @@ class LiteLLMClient:
             usage=Usage(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
             cost=self._cost(response),
         )
+
+
+def proxy_client_from_env() -> LiteLLMClient:
+    """`LiteLLMClient`, нацеленный на локальный LiteLLM Proxy (единый endpoint, настройки — в UI).
+
+    Backend выбирается по стабильному имени модели в прокси; переключение моделей происходит
+    в UI/конфиге прокси, а не в коде агента. Читает `LITELLM_BASE_URL` / `LITELLM_MODEL` /
+    `LITELLM_VIRTUAL_KEY` (ключ по умолчанию — `LITELLM_MASTER_KEY`). Секреты — только из env.
+    """
+    base = os.environ.get("LITELLM_BASE_URL", "http://localhost:4000/v1")
+    model = os.environ.get("LITELLM_MODEL", "agent-llm")
+    api_key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY", "")
+    full_model = model if "/" in model else f"openai/{model}"
+    return LiteLLMClient(
+        model=full_model, extra_params={"api_base": base, "api_key": api_key}
+    )

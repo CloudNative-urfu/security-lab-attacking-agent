@@ -33,6 +33,29 @@ services:
     ports:
       - "8082:8082"
 
+  # LiteLLM Proxy: единый OpenAI-совместимый endpoint для моделей агента + веб-админка.
+  # UI: http://localhost:4000/ui (вход по LITELLM_MASTER_KEY). Модели/ключи/бюджеты — в UI,
+  # persist в общей БД ag (STORE_MODEL_IN_DB). Cloud.ru с IAM-токеном сюда не кладём —
+  # он остаётся на CloudRuLLMClient; прокси для vLLM/OpenAI-совместимых моделей (статичный ключ).
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-dev-master}
+      DATABASE_URL: postgresql://ag:ag@postgres:5432/ag
+      STORE_MODEL_IN_DB: "True"
+      VLLM_API_BASE: ${VLLM_API_BASE:-http://host.docker.internal:8000/v1}
+      VLLM_API_KEY: ${VLLM_API_KEY:-dummy}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./litellm.config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
+    ports:
+      - "4000:4000"
+
   temporal:
     image: temporalio/auto-setup:1.25.2
     depends_on:

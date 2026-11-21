@@ -88,6 +88,22 @@ uv run python scripts/smoke_cloudru.py   # один реальный запро�
 подойдёт `LiteLLMClient` (тот же порт `LLMClient`): `LiteLLMClient(model="openai/<имя>",
 extra_params={"api_base": "http://host:8000/v1", "api_key": "<ключ>"})`. CloudRu-адаптер нужен
 только из-за IAM-токенов Cloud.ru; у ванильного vLLM со статичным ключом этого слоя нет.
+
+**Пульт для моделей — LiteLLM Proxy + Admin UI.** Чтобы не править `.env` при каждой смене
+модели, в `docker-compose.yml` есть сервис `litellm` (на общей БД `ag`): единый
+OpenAI-совместимый endpoint на `:4000` и веб-админка на `http://localhost:4000/ui` (вход по
+`LITELLM_MASTER_KEY`). Модели, виртуальные ключи, бюджеты и логи крутятся в UI (persist в БД);
+backend за стабильным именем `agent-llm` меняется в UI/`litellm.config.yaml`, не в коде агента.
+
+```bash
+docker compose up -d postgres litellm       # прокси + UI (http://localhost:4000/ui)
+```
+
+Агент ходит в прокси одной фабрикой — `proxy_client_from_env()` (`adapters/litellm_client.py`),
+читает `LITELLM_BASE_URL` / `LITELLM_MODEL` / `LITELLM_VIRTUAL_KEY`. Тогда `.env` агента держит
+только URL прокси и один ключ, а переключение моделей (Cloud.ru-на-адаптере ↔ uncensored vLLM)
+живёт в прокси. Бюджеты LiteLLM дополняют собственный budget-ledger (защита в глубину).
+
 Безопасность — на харнесе (policy/scope/allowlist/бюджет), а не на «сдержанности» модели:
 предложение любой модели всё равно режется по области. Отказ модели обрабатывается штатно
 (`stop_reason=model_refused`, метрика `refusals`) — пайплайн не падает.
